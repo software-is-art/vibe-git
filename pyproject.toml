@@ -1,0 +1,13 @@
+[project]
+name = "vibe-git"
+version = "0.1.0"
+description = "Friction-free git workflows for vibe coding - MCP server"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastmcp>=2.8.0",
+    "watchdog>=6.0.0",
+]
+
+[project.scripts]
+vibe-git-mcp = "main:main"
