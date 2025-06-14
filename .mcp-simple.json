@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "simple-test": {
+      "command": "/Users/cgalbreath@simplemachines.co.nz/git/vibe-git/target/release/simple-mcp",
+      "args": []
+    }
+  }
+}
