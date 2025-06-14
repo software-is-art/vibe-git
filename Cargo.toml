@@ -1,0 +1,49 @@
+[package]
+name = "vibe-git"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "vibe-git-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# Official MCP Rust SDK
+rmcp = { version = "0.1.5", features = ["server"] }
+rmcp-macros = "0.1.5"
+
+# Git operations
+git2 = "0.19"
+
+# File watching
+notify = "6.1"
+
+# Async runtime
+tokio = { version = "1.41", features = ["full"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Time handling
+chrono = "0.4"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Async traits (may not be needed with new SDK)
+async-trait = "0.1"
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.10"
+mockall = "0.13"
+tokio-test = "0.4"
+serde_json = "1.0"

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "vibe-git": {
+      "command": "/Users/cgalbreath@simplemachines.co.nz/git/vibe-git/target/release/vibe-git-mcp",
+      "cwd": "/Users/cgalbreath@simplemachines.co.nz/git/vibe-git"
+    }
+  }
+}
