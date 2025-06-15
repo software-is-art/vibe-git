@@ -54,28 +54,63 @@ struct Detached;
 
 #### `start_vibing()`
 - **When to use**: FIRST thing before editing any files
-- **What it does**: Creates git branch, starts auto-commit watcher
+- **What it does**: Creates git branch from latest main, starts auto-commit watcher
 - **Safe to call**: Multiple times (idempotent)
-- **Example**: Always call this before implementing features
+- **Handles uncommitted changes**: Prompts to use one of the helper functions below
 
 #### `stop_vibing(commit_message)`
 - **When to use**: ONLY when user explicitly asks to stop or says they're done
 - **What it does**: Squashes commits, rebases on main, creates PR
 - **Safe to call**: Even if not vibing (idempotent)
 - **IMPORTANT**: Do NOT call automatically - wait for user confirmation
-- **Example**: `stop_vibing(commit_message="Add user authentication system")`
+- **Commit message format**: First line becomes PR title, full message becomes PR body
+- **Example**: 
+  ```
+  stop_vibing(commit_message="""Add user authentication system
+  
+  - Implemented JWT-based authentication
+  - Added login/logout endpoints
+  - Created middleware for protected routes
+  - Updated user model with password hashing""")
+  ```
 
 #### `vibe_status()`
 - **When to use**: Check current session state
 - **Returns**: 🟢 VIBING | 🔵 IDLE | ⚪ NOT INITIALIZED
 
-### Example Session
+#### `stash_and_vibe()`
+- **When to use**: Have uncommitted changes but want to start fresh from main
+- **What it does**: Stashes changes, switches to main, starts vibing
+- **Restore changes**: Use `git stash pop` after vibing
+
+#### `commit_and_vibe()`
+- **When to use**: Want to save current work before starting fresh
+- **What it does**: Commits as "WIP", switches to main, starts vibing
+
+#### `vibe_from_here()`
+- **When to use**: Want to start vibing with current changes
+- **What it does**: Starts vibing from current branch/state
+- **Auto-commits**: Any existing uncommitted changes
+
+### Example Sessions
+
+#### Starting fresh from main:
 ```
 1. vibe_status() → "🔵 IDLE: Ready to start vibing"
 2. start_vibing() → "🚀 Started vibing! Auto-committing changes"
 3. [Make code changes - all auto-committed]
 4. stop_vibing(commit_message="Implement login feature") → "🏁 PR created!"
 ```
+
+#### With uncommitted changes:
+```
+1. start_vibing() → "⚠️ Uncommitted changes detected!"
+2. stash_and_vibe() → "🚀 Started vibing! Your changes are stashed."
+3. [Make code changes]
+4. stop_vibing(commit_message="New feature") → "🏁 PR created!"
+5. git stash pop → Restore your original changes
+```
+
 
 ### Error Recovery
 - All tools are **idempotent** - safe to call multiple times

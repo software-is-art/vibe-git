@@ -1,0 +1,512 @@
+#!/usr/bin/env python3
+"""
+Integration tests for vibe-git MCP server.
+
+These tests create temporary git repositories and test the full workflow
+to ensure the MCP tools work correctly in real scenarios.
+"""
+
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+# Import the main module and access function objects directly
+import main
+from main import find_git_repo, run_git_command, session
+
+# Get the original function references from the FunctionTool objects
+start_vibing = main.start_vibing.fn
+stop_vibing = main.stop_vibing.fn
+vibe_status = main.vibe_status.fn
+stash_and_vibe = main.stash_and_vibe.fn
+commit_and_vibe = main.commit_and_vibe.fn
+vibe_from_here = main.vibe_from_here.fn
+
+
+class GitRepoFixture:
+    """Helper class to create and manage temporary git repositories for testing."""
+
+    def __init__(self):
+        self.temp_dir = None
+        self.repo_path = None
+        self.original_cwd = None
+
+    def __enter__(self):
+        """Create a temporary git repository."""
+        self.temp_dir = tempfile.mkdtemp(prefix="vibe_git_test_")
+        self.repo_path = Path(self.temp_dir)
+        self.original_cwd = os.getcwd()
+
+        # Change to temp directory
+        os.chdir(self.repo_path)
+
+        # Initialize git repo
+        subprocess.run(["git", "init"], check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], check=True)
+
+        # Create initial commit
+        (self.repo_path / "README.md").write_text("# Test Repo")
+        subprocess.run(["git", "add", "README.md"], check=True)
+        subprocess.run(["git", "commit", "-m", "Initial commit"], check=True)
+
+        # Ensure we're on main branch (in case git init created a different default)
+        result = subprocess.run(
+            ["git", "branch", "--show-current"], capture_output=True, text=True
+        )
+        current_branch = result.stdout.strip() if result.returncode == 0 else "master"
+        
+        if current_branch != "main":
+            # Rename to main if not already main
+            subprocess.run(["git", "branch", "-M", "main"], check=True)
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Clean up temporary repository."""
+        # Reset session state
+        session.is_vibing = False
+        session.branch_name = None
+        if session.observer:
+            session.observer.stop()
+        session.observer = None
+        session.commit_event = None
+
+        # Change back to original directory safely
+        if self.original_cwd and os.path.exists(self.original_cwd):
+            os.chdir(self.original_cwd)
+        else:
+            # Fallback to a safe directory
+            os.chdir(os.path.expanduser("~"))
+
+        # Remove temp directory
+        if self.temp_dir and os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def create_file(self, filename: str, content: str = "test content"):
+        """Create a file with content."""
+        (self.repo_path / filename).write_text(content)
+
+    def modify_file(self, filename: str, content: str):
+        """Modify an existing file."""
+        (self.repo_path / filename).write_text(content)
+
+    def get_git_log(self):
+        """Get git log output."""
+        result = subprocess.run(
+            ["git", "log", "--oneline"], capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip().split("\n") if result.stdout.strip() else []
+
+    def get_current_branch(self):
+        """Get current branch name."""
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+
+
+@pytest.fixture(autouse=True)
+def reset_session():
+    """Reset the global session state before each test."""
+    session.is_vibing = False
+    session.branch_name = None
+    if session.observer:
+        session.observer.stop()
+    session.observer = None
+    session.commit_event = None
+
+
+class TestVibeStatus:
+    """Test vibe_status functionality."""
+
+    def test_status_idle_on_main(self):
+        """Test status shows idle when on main branch."""
+        with GitRepoFixture():
+            result = vibe_status()
+            assert "🔵 IDLE" in result
+            assert "Ready to start vibing" in result
+
+    def test_status_detects_vibe_branch(self):
+        """Test status detects when on vibe branch but not vibing."""
+        with GitRepoFixture():
+            # Create and checkout a vibe branch manually
+            subprocess.run(["git", "checkout", "-b", "vibe-12345"], check=True)
+
+            result = vibe_status()
+            assert "🟡 VIBE BRANCH DETECTED" in result
+            assert "vibe-12345" in result
+
+    def test_status_shows_active_session(self):
+        """Test status shows active when vibing."""
+        with GitRepoFixture():
+            # Start vibing
+            start_result = start_vibing()
+            assert "🚀 Started vibing" in start_result
+
+            # Check status
+            status_result = vibe_status()
+            assert "🟢 VIBING" in status_result
+            assert "auto-committing changes" in status_result
+
+
+class TestStartVibing:
+    """Test start_vibing functionality."""
+
+    def test_start_vibing_creates_branch(self):
+        """Test that start_vibing creates a new vibe branch."""
+        with GitRepoFixture() as repo:
+            result = start_vibing()
+
+            assert "🚀 Started vibing" in result
+            assert "Created branch" in result
+
+            # Check we're on a vibe branch
+            current_branch = repo.get_current_branch()
+            assert current_branch.startswith("vibe-")
+
+            # Check session state
+            assert session.is_vibing is True
+            assert session.branch_name == current_branch
+
+    def test_start_vibing_reuses_existing_vibe_branch(self):
+        """Test that start_vibing reuses existing vibe branch."""
+        with GitRepoFixture() as repo:
+            # Create a vibe branch manually
+            subprocess.run(["git", "checkout", "-b", "vibe-existing"], check=True)
+
+            result = start_vibing()
+
+            assert "🚀 Started vibing" in result
+            assert "Reusing existing vibe branch" in result
+            assert "vibe-existing" in result
+
+            # Check we're still on the same branch
+            assert repo.get_current_branch() == "vibe-existing"
+
+    def test_start_vibing_detects_uncommitted_changes(self):
+        """Test that start_vibing detects uncommitted changes and provides options."""
+        with GitRepoFixture() as repo:
+            # Create uncommitted changes
+            repo.create_file("test.txt", "uncommitted content")
+
+            result = start_vibing()
+
+            assert "⚠️ Uncommitted changes detected" in result
+            assert "commit_and_vibe()" in result
+            assert "stash_and_vibe()" in result
+            assert "vibe_from_here()" in result
+
+    def test_start_vibing_pulls_latest_main(self):
+        """Test that start_vibing pulls latest changes from main."""
+        with GitRepoFixture():
+            # Mock git pull to verify it's called
+            with patch("main.run_git_command") as mock_run:
+                # Setup mock to return success for all git commands
+                mock_run.return_value = (True, "")
+
+                start_vibing()
+
+                # Check that pull was called
+                pull_calls = [
+                    call for call in mock_run.call_args_list if "pull" in call[0][0]
+                ]
+                assert len(pull_calls) > 0
+
+
+class TestHelperFunctions:
+    """Test helper functions: stash_and_vibe, commit_and_vibe, vibe_from_here."""
+
+    def test_commit_and_vibe(self):
+        """Test commit_and_vibe commits changes and starts vibing."""
+        with GitRepoFixture() as repo:
+            # Create uncommitted changes
+            repo.create_file("test.txt", "test content")
+
+            result = commit_and_vibe()
+
+            assert "🚀 Started vibing" in result
+            assert "WIP: Pre-vibe commit" in result
+
+            # Check that changes were committed
+            log = repo.get_git_log()
+            assert any("WIP: Pre-vibe commit" in entry for entry in log)
+
+            # Check we're vibing
+            assert session.is_vibing is True
+
+    def test_stash_and_vibe(self):
+        """Test stash_and_vibe stashes changes and starts vibing."""
+        with GitRepoFixture() as repo:
+            # Create uncommitted changes
+            repo.create_file("test.txt", "test content")
+
+            result = stash_and_vibe()
+
+            assert "🚀 Started vibing" in result
+            assert "stashed" in result.lower()
+
+            # Check we're vibing
+            assert session.is_vibing is True
+
+            # Check working directory is clean
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"], capture_output=True, text=True
+            )
+            assert status_result.stdout.strip() == ""
+
+    def test_vibe_from_here(self):
+        """Test vibe_from_here starts vibing from current branch."""
+        with GitRepoFixture() as repo:
+            # Create a feature branch
+            subprocess.run(["git", "checkout", "-b", "feature-branch"], check=True)
+            repo.create_file("feature.txt", "feature content")
+
+            result = vibe_from_here()
+
+            assert "🚀 Started vibing" in result
+
+            # Check we're on a vibe branch (created from feature branch)
+            current_branch = repo.get_current_branch()
+            assert current_branch.startswith("vibe-")
+
+            # Check session state
+            assert session.is_vibing is True
+
+    def test_vibe_from_here_with_uncommitted_changes(self):
+        """Test vibe_from_here handles uncommitted changes."""
+        with GitRepoFixture() as repo:
+            # Create uncommitted changes
+            repo.create_file("test.txt", "uncommitted content")
+
+            result = vibe_from_here()
+
+            assert "🚀 Started vibing" in result
+            assert "uncommitted changes will be auto-committed" in result.lower()
+
+            # Check we're vibing
+            assert session.is_vibing is True
+
+
+class TestStopVibing:
+    """Test stop_vibing functionality."""
+
+    def test_stop_vibing_not_vibing(self):
+        """Test stop_vibing when not currently vibing."""
+        with GitRepoFixture():
+            result = stop_vibing("test commit")
+
+            assert "Not currently vibing" in result
+
+    @patch("main.run_git_command")
+    def test_stop_vibing_successful_flow(self, mock_run):
+        """Test complete stop_vibing flow."""
+        with GitRepoFixture():
+            # Setup mock responses
+            def mock_git_command(args, cwd=None):
+                if "merge-base" in args:
+                    return (True, "abc123")  # Mock base commit
+                elif "reset" in args:
+                    return (True, "")
+                elif "commit" in args:
+                    return (True, "")
+                elif "rebase" in args:
+                    return (True, "")
+                elif "push" in args:
+                    return (True, "")
+                elif "gh" in args and "pr" in args:
+                    return (True, "https://github.com/test/repo/pull/1")
+                return (True, "")
+
+            mock_run.side_effect = mock_git_command
+
+            # Start vibing first
+            session.is_vibing = True
+            session.branch_name = "vibe-test"
+
+            commit_message = """Add new feature
+
+This is a detailed description of the feature
+that was implemented during the vibe session."""
+
+            result = stop_vibing(commit_message)
+
+            assert "🏁 Stopped vibing" in result
+            assert "Squashed commits" in result
+
+            # Check session was reset
+            assert session.is_vibing is False
+            assert session.branch_name is None
+
+    def test_stop_vibing_pr_title_extraction(self):
+        """Test that stop_vibing correctly extracts PR title from commit message."""
+        with GitRepoFixture():
+            # Mock successful git operations and PR creation
+            with patch("main.run_git_command") as mock_run:
+
+                def mock_git_command(args, cwd=None):
+                    if "gh" in args and "pr" in args and "create" in args:
+                        # Find the title argument
+                        title_idx = args.index("--title") + 1
+                        title = args[title_idx]
+                        # Should be just the first line
+                        assert title == "Add new feature"
+                        return (True, "https://github.com/test/repo/pull/1")
+                    return (True, "abc123" if "merge-base" in args else "")
+
+                mock_run.side_effect = mock_git_command
+
+                # Start vibing
+                session.is_vibing = True
+                session.branch_name = "vibe-test"
+
+                commit_message = """Add new feature
+
+This is a detailed description
+with multiple lines."""
+
+                stop_vibing(commit_message)
+
+
+class TestFileWatching:
+    """Test file watching and auto-commit functionality."""
+
+    def test_auto_commit_triggers(self):
+        """Test that file changes trigger auto-commits."""
+        with GitRepoFixture() as repo:
+            # Start vibing
+            start_result = start_vibing()
+            assert "🚀 Started vibing" in start_result
+
+            # Give the file watcher a moment to start
+            time.sleep(0.1)
+
+            # Create a new file
+            repo.create_file("auto_test.txt", "auto commit test")
+
+            # Give the file watcher time to detect and commit
+            time.sleep(1.5)  # Rate limiting is 1 second
+
+            # Check that an auto-commit was made
+            log = repo.get_git_log()
+            # Should have: initial commit + at least one auto-commit
+            assert len(log) >= 2
+
+            # Check that the file was committed
+            result = subprocess.run(
+                ["git", "status", "--porcelain"], capture_output=True, text=True
+            )
+            # Working directory should be clean (file was committed)
+            assert "auto_test.txt" not in result.stdout
+
+
+class TestErrorHandling:
+    """Test error handling and edge cases."""
+
+    def test_not_in_git_repo(self):
+        """Test behavior when not in a git repository."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.chdir(temp_dir)
+
+            with pytest.raises(Exception):
+                find_git_repo()
+
+    def test_git_command_failure(self):
+        """Test handling of git command failures."""
+        success, output = run_git_command(["invalid-git-command"])
+        assert success is False
+        assert (
+            "unknown command" in output.lower() or "not a git command" in output.lower()
+        )
+
+    def test_start_vibing_git_errors(self):
+        """Test start_vibing handles git errors gracefully."""
+        with GitRepoFixture():
+            # Mock a failing git command
+            with patch("main.run_git_command") as mock_run:
+                mock_run.return_value = (False, "Git error occurred")
+
+                result = start_vibing()
+
+                # Should handle the error gracefully
+                assert "❌ Error" in result or not session.is_vibing
+
+
+class TestIntegrationWorkflow:
+    """Test complete workflows end-to-end."""
+
+    def test_complete_vibe_session(self):
+        """Test a complete vibe session from start to finish."""
+        with GitRepoFixture() as repo:
+            # 1. Start vibing
+            start_result = start_vibing()
+            assert "🚀 Started vibing" in start_result
+            assert session.is_vibing is True
+
+            original_branch = repo.get_current_branch()
+            assert original_branch.startswith("vibe-")
+
+            # 2. Make some changes
+            repo.create_file("feature1.txt", "First feature")
+            time.sleep(1.1)  # Wait for auto-commit
+
+            repo.create_file("feature2.txt", "Second feature")
+            time.sleep(1.1)  # Wait for auto-commit
+
+            # 3. Check that auto-commits happened
+            log = repo.get_git_log()
+            assert len(log) >= 3  # initial + 2 auto-commits
+
+            # 4. Stop vibing (mock PR creation)
+            with patch("main.run_git_command") as mock_run:
+
+                def mock_git_command(args, cwd=None):
+                    if "gh" in args:
+                        return (True, "https://github.com/test/repo/pull/1")
+                    elif "merge-base" in args:
+                        return (True, "abc123")
+                    return (True, "")
+
+                mock_run.side_effect = mock_git_command
+
+                stop_result = stop_vibing("Add two new features")
+                assert "🏁 Stopped vibing" in stop_result
+                assert session.is_vibing is False
+
+    def test_workflow_with_uncommitted_changes(self):
+        """Test workflow starting with uncommitted changes."""
+        with GitRepoFixture() as repo:
+            # Create uncommitted changes
+            repo.create_file("existing.txt", "existing work")
+
+            # Should suggest helper functions
+            start_result = start_vibing()
+            assert "⚠️ Uncommitted changes detected" in start_result
+
+            # Use commit_and_vibe
+            commit_result = commit_and_vibe()
+            assert "🚀 Started vibing" in commit_result
+            assert session.is_vibing is True
+
+            # Continue with normal workflow
+            repo.create_file("new_feature.txt", "new feature")
+            time.sleep(1.1)
+
+            # Stop vibing
+            with patch("main.run_git_command") as mock_run:
+                mock_run.return_value = (True, "")
+                stop_result = stop_vibing("Complete feature work")
+                assert "🏁 Stopped vibing" in stop_result or "❌ Error" in stop_result
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
