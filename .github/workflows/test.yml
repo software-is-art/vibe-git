@@ -57,34 +57,17 @@ jobs:
         restore-keys: |
           mutmut-
 
-    - name: Run mutation testing on main.py
+    - name: Run mutation testing on entire src/
       run: |
-        # Update pyproject.toml to test main.py
-        cp pyproject.toml pyproject.toml.bak
-        sed -i 's|paths_to_mutate = \["src/vibe_git/vibe_status_only.py"\]|paths_to_mutate = ["src/vibe_git/main.py"]|' pyproject.toml
-        
-        # Run mutmut
+        # Run mutmut on entire src directory (configured in pyproject.toml)
         uv run mutmut run || true
-        echo "## Mutation Testing Results for main.py" >> $GITHUB_STEP_SUMMARY
+        echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         uv run mutmut results --all true >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        
-        # Restore original pyproject.toml
-        mv pyproject.toml.bak pyproject.toml
       continue-on-error: true  # Don't fail the build if mutation score is low
 
     # Cache is preserved between runs for speed
-
-    - name: Run focused mutation testing on vibe_status_only.py
-      run: |
-        # Use the default config from pyproject.toml which tests src/vibe_git/vibe_status_only.py
-        uv run mutmut run || true
-        echo "## Mutation Testing Results for vibe_status_only.py" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results --all true >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true
 
   lint:
     runs-on: ubuntu-latest
