@@ -109,29 +109,39 @@ def test_regression_pr_creation_bug():
                 print("✅ PR creation correctly uses subprocess, not run_git_command")
 
 
-def test_regression_auto_commit_no_verify_bypass():
+def test_regression_auto_commit_strategy():
     """
-    REGRESSION TEST: Ensure auto-commit doesn't use --no-verify to bypass hooks.
+    REGRESSION TEST: Ensure proper hook strategy during vibe vs stop_vibing.
 
-    Bug: Auto-commit used --no-verify which bypassed important pre-commit hooks,
-    allowing poorly formatted code to be committed.
+    Strategy:
+    - During vibe: Use --no-verify to prevent hook noise and context bloat
+    - During stop: Use --no-verify for squash, then amend to run hooks on final commit
 
-    Fix: Always try pre-commit hooks first, handle failures gracefully.
+    This gives us clean history during development and formatted code at the end.
     """
-    print("🔄 REGRESSION: Testing auto-commit --no-verify bypass...")
+    print("🔄 REGRESSION: Testing hook strategy...")
 
-    # Check that the auto_commit_worker function doesn't contain --no-verify
     import inspect
 
-    source = inspect.getsource(main.auto_commit_worker)
+    # Check auto-commit uses --no-verify during vibe
+    auto_source = inspect.getsource(main.auto_commit_worker)
+    if "--no-verify" not in auto_source:
+        print("❌ REGRESSION: auto_commit_worker should use --no-verify during vibe")
+        raise AssertionError(
+            "auto_commit_worker must use --no-verify to prevent hook noise"
+        )
 
-    # The regression would be if --no-verify appears in the auto-commit code
-    if "--no-verify" in source:
-        print("❌ REGRESSION DETECTED: auto_commit_worker uses --no-verify")
-        print("This bypasses pre-commit hooks and reduces code quality!")
-        raise AssertionError("auto_commit_worker must not use --no-verify")
+    # Check stop_vibing has proper hook strategy
+    stop_source = inspect.getsource(main.stop_vibing.fn)
+    if "--no-verify" not in stop_source:
+        print("❌ REGRESSION: stop_vibing should use --no-verify for squash")
+        raise AssertionError("stop_vibing must use --no-verify for initial squash")
 
-    print("✅ Auto-commit correctly respects pre-commit hooks")
+    if "amend" not in stop_source:
+        print("❌ REGRESSION: stop_vibing should amend to run hooks")
+        raise AssertionError("stop_vibing must amend to run hooks on final commit")
+
+    print("✅ Hook strategy is correct: bypass during vibe, run on final commit")
 
 
 def test_regression_stop_vibing_checkout_bug():
@@ -278,8 +288,8 @@ if __name__ == "__main__":
     regression_tests = [
         ("PR Creation Bug", test_regression_pr_creation_bug),
         (
-            "Auto-commit --no-verify Bypass",
-            test_regression_auto_commit_no_verify_bypass,
+            "Hook Strategy (vibe vs stop)",
+            test_regression_auto_commit_strategy,
         ),
         ("stop_vibing() Checkout Bug", test_regression_stop_vibing_checkout_bug),
         ("Race Condition PR Creation", test_regression_race_condition_pr_creation),

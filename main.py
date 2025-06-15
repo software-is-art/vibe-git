@@ -143,10 +143,13 @@ def auto_commit_worker():
                     # Add all changes
                     run_git_command(["add", "."], repo_path)
 
-                    # Commit with timestamp
+                    # Commit with timestamp, bypassing hooks during vibe session
+                    # This prevents formatting changes from creating noise and consuming context
                     timestamp = int(time.time())
                     commit_msg = f"Auto-commit {timestamp}"
-                    run_git_command(["commit", "-m", commit_msg], repo_path)
+                    run_git_command(
+                        ["commit", "-m", commit_msg, "--no-verify"], repo_path
+                    )
 
         except Exception as e:
             print(f"Auto-commit worker error: {e}", file=sys.stderr)

@@ -24,24 +24,26 @@ def test_auto_commit_worker_function_exists():
     print("✅ auto_commit_worker function exists")
 
 
-def test_no_verify_not_in_auto_commit():
-    """Test that --no-verify is not used in auto-commit code."""
+def test_no_verify_in_auto_commit():
+    """Test that --no-verify IS used in auto-commit to prevent hook noise."""
     import inspect
 
     source = inspect.getsource(main.auto_commit_worker)
-    assert "--no-verify" not in source, "auto_commit_worker should not use --no-verify"
-    print("✅ auto_commit_worker does not use --no-verify")
+    assert "--no-verify" in source, (
+        "auto_commit_worker should use --no-verify to prevent hook noise during vibe sessions"
+    )
+    print("✅ auto_commit_worker uses --no-verify to prevent hook noise")
 
 
-def test_auto_commit_respects_hooks():
-    """Test that auto-commit respects existing hooks naturally."""
+def test_stop_vibing_respects_hooks():
+    """Test that stop_vibing respects hooks on the final squashed commit."""
     import inspect
 
-    source = inspect.getsource(main.auto_commit_worker)
-    # Should NOT use --no-verify (respects hooks naturally)
-    assert "--no-verify" not in source, "Should not bypass hooks with --no-verify"
-    assert "commit" in source, "Should still commit changes"
-    print("✅ Auto-commit respects hooks naturally")
+    source = inspect.getsource(main.stop_vibing.fn)
+    # Should use --no-verify for squash, then amend without it
+    assert "--no-verify" in source, "Should use --no-verify for initial squash"
+    assert "amend" in source, "Should amend to run hooks"
+    print("✅ stop_vibing respects hooks on final commit")
 
 
 def test_file_handler_ignore_functionality():
@@ -65,8 +67,8 @@ if __name__ == "__main__":
     tests = [
         test_auto_commit_worker_simplicity,
         test_auto_commit_worker_function_exists,
-        test_no_verify_not_in_auto_commit,
-        test_auto_commit_respects_hooks,
+        test_no_verify_in_auto_commit,
+        test_stop_vibing_respects_hooks,
         test_file_handler_ignore_functionality,
     ]
 
