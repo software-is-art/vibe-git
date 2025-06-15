@@ -89,7 +89,7 @@ def test_auto_commit_worker_pre_commit_success():
             # Run one iteration of auto-commit worker
             try:
                 main.auto_commit_worker()
-            except:
+            except Exception:
                 pass  # Expected since session.is_vibing will be cleared
 
             # Verify git commands were called correctly
@@ -142,7 +142,7 @@ def test_auto_commit_worker_pre_commit_fixes_files():
 
             try:
                 main.auto_commit_worker()
-            except:
+            except Exception:
                 pass
 
             # Should have tried commit twice
@@ -194,7 +194,7 @@ def test_auto_commit_worker_pre_commit_missing():
 
             try:
                 main.auto_commit_worker()
-            except:
+            except Exception:
                 pass
 
             # Should have attempted commit and then reset
@@ -248,7 +248,7 @@ def test_auto_commit_worker_syntax_errors():
 
             try:
                 main.auto_commit_worker()
-            except:
+            except Exception:
                 pass
 
             # Should have attempted commit and then reset due to syntax error
