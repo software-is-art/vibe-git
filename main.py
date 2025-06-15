@@ -342,6 +342,7 @@ def stop_vibing(commit_message: str) -> str:
         # Try to create PR using GitHub CLI
         success, output = run_git_command(
             ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
+
         )
 
         pr_info = ""
@@ -460,6 +461,7 @@ def vibe_from_here() -> str:
             success, output = run_git_command(
                 ["checkout", "-b", branch_name], repo_path
             )
+    
             if not success:
                 return f"❌ Error creating branch: {output}"
         else:
@@ -513,6 +515,7 @@ def vibe_status() -> str:
 
         # Check if we have an active vibe session
         if session.is_vibing and session.branch_name:
+
             if current_branch == session.branch_name:
                 return f"🟢 VIBING: Active session on branch '{session.branch_name}' - auto-committing changes on file modifications"
             else:
