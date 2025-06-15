@@ -101,11 +101,12 @@ def test_regression_pr_creation_bug():
                     print(
                         f"❌ REGRESSION DETECTED: gh commands sent to run_git_command: {gh_commands_via_git}"
                     )
-                    return False
+                    raise AssertionError(
+                        "gh commands must not be sent to run_git_command"
+                    )
 
                 # Should succeed without using run_git_command for gh
                 print("✅ PR creation correctly uses subprocess, not run_git_command")
-                return True
 
 
 def test_regression_auto_commit_no_verify_bypass():
@@ -128,10 +129,9 @@ def test_regression_auto_commit_no_verify_bypass():
     if "--no-verify" in source:
         print("❌ REGRESSION DETECTED: auto_commit_worker uses --no-verify")
         print("This bypasses pre-commit hooks and reduces code quality!")
-        return False
+        raise AssertionError("auto_commit_worker must not use --no-verify")
 
     print("✅ Auto-commit correctly respects pre-commit hooks")
-    return True
 
 
 def test_regression_stop_vibing_checkout_bug():
@@ -153,15 +153,15 @@ def test_regression_stop_vibing_checkout_bug():
     # Check for the critical fix
     if "CRITICAL FIX" not in source:
         print("❌ REGRESSION: Critical checkout fix comment missing")
-        return False
+        raise AssertionError("Must have CRITICAL FIX comment")
 
     if "final_checkout" not in source:
         print("❌ REGRESSION: Final checkout code missing")
-        return False
+        raise AssertionError("Must have final_checkout code")
 
     if "Error switching back to main" not in source:
         print("❌ REGRESSION: Final checkout error handling missing")
-        return False
+        raise AssertionError("Must have error handling for final checkout")
 
     print("✅ stop_vibing() has final checkout to main branch")
     print("✅ Final checkout has proper error handling")
@@ -205,10 +205,9 @@ def test_regression_stop_vibing_checkout_bug():
 
         if final_branch != "main":
             print(f"❌ REGRESSION DETECTED: Expected main branch, got {final_branch}")
-            return False
+            raise AssertionError(f"Expected main branch, got {final_branch}")
 
         print("✅ stop_vibing() correctly returns user to main branch")
-        return True
 
 
 def test_regression_race_condition_pr_creation():
@@ -231,10 +230,9 @@ def test_regression_race_condition_pr_creation():
     # The fix is implicit in using run_command for gh pr create
     if "run_command" in source and "gh" in source and "pr" in source:
         print("✅ PR creation uses proper command execution")
-        return True
     else:
         print("❌ REGRESSION: PR creation not using run_command")
-        return False
+        raise AssertionError("PR creation must use run_command for gh commands")
 
 
 def test_regression_uncommitted_changes_accumulation():
@@ -258,16 +256,17 @@ def test_regression_uncommitted_changes_accumulation():
     # Should have proper commit logic
     if "status" not in source or "add" not in source or "commit" not in source:
         print("❌ REGRESSION: Auto-commit worker missing basic git operations")
-        return False
+        raise AssertionError(
+            "Auto-commit worker must have status, add, and commit operations"
+        )
 
     # Should handle file watcher events
     if "commit_event" not in source:
         print("❌ REGRESSION: Auto-commit worker not connected to file watcher")
-        return False
+        raise AssertionError("Auto-commit worker must be connected to file watcher")
 
     print("✅ Auto-commit worker has proper structure")
     print("✅ File watcher integration present")
-    return True
 
 
 if __name__ == "__main__":
