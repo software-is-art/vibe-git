@@ -52,11 +52,11 @@ def find_git_repo() -> Path:
     raise RuntimeError("Not in a git repository")
 
 
-def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
-    """Run a git command and return (success, output)"""
+def run_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run any command and return (success, output)"""
     try:
         result = subprocess.run(
-            ["git"] + args,
+            args,
             cwd=cwd or find_git_repo(),
             capture_output=True,
             text=True,
@@ -65,6 +65,11 @@ def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str
         return result.returncode == 0, result.stdout.strip() or result.stderr.strip()
     except Exception as e:
         return False, str(e)
+
+
+def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run a git command and return (success, output)"""
+    return run_command(["git"] + args, cwd)
 
 
 class VibeFileHandler(FileSystemEventHandler):
@@ -136,15 +141,41 @@ def auto_commit_worker():
                 success, output = run_git_command(["status", "--porcelain"], repo_path)
                 if success and output.strip():
                     # Add all changes
-                    run_git_command(["add", "."], repo_path)
+                    add_success, add_output = run_git_command(["add", "."], repo_path)
+                    
+                    if add_success:
+                        # Try commit with pre-commit hooks first
+                        timestamp = int(time.time())
+                        commit_msg = f"Auto-commit {timestamp}"
+                        commit_success, commit_output = run_git_command(["commit", "-m", commit_msg], repo_path)
+                        
+                        if not commit_success:
+                            # Check if pre-commit dependencies are missing
+                            if "pre-commit` not found" in commit_output or "No module named pre_commit" in commit_output:
+                                # Pre-commit not available - this is a setup issue that needs to be fixed
+                                print(f"❌ Pre-commit not available - cannot auto-commit. Please fix pre-commit setup: {commit_output}", file=sys.stderr)
+                                # Reset changes so they remain for manual fixing
+                                run_git_command(["reset", "HEAD"], repo_path)
+                                
+                            elif "modified by hook" in commit_output or "files were modified" in commit_output:
+                                # Pre-commit hooks fixed the files, try commit again
+                                commit_success, commit_output = run_git_command(["commit", "-m", commit_msg], repo_path)
+                                
+                                if commit_success:
+                                    print(f"Auto-commit succeeded after pre-commit fixes", file=sys.stderr)
+                                else:
+                                    print(f"Auto-commit failed even after pre-commit fixes: {commit_output}", file=sys.stderr)
+                            else:
+                                # Pre-commit hooks failed for other reasons (syntax errors, etc.)
+                                print(f"Auto-commit blocked by pre-commit hooks: {commit_output}", file=sys.stderr)
+                                # Reset the changes to unstaged state so user can fix manually
+                                run_git_command(["reset", "HEAD"], repo_path)
+                        
+                        if not commit_success:
+                            print(f"Auto-commit failed: {commit_output}", file=sys.stderr)
 
-                    # Commit with timestamp
-                    timestamp = int(time.time())
-                    commit_msg = f"Auto-commit {timestamp}"
-                    run_git_command(["commit", "-m", commit_msg], repo_path)
-
-        except Exception:
-            # Continue on any errors
+        except Exception as e:
+            print(f"Auto-commit worker error: {e}", file=sys.stderr)
             time.sleep(0.1)
 
 
@@ -257,9 +288,40 @@ def _start_vibing_impl() -> str:
         return f"❌ Error starting vibe session: {e}"
 
 
+def ensure_pre_commit_setup() -> tuple[bool, str]:
+    """Ensure pre-commit is properly set up for the repository."""
+    repo_path = find_git_repo()
+    
+    # Check if pre-commit is installed in venv
+    venv_python = repo_path / ".venv" / "bin" / "python3"
+    if venv_python.exists():
+        check_success, check_output = run_command([str(venv_python), "-m", "pre_commit", "--version"], repo_path)
+        if check_success:
+            return True, "Pre-commit is available"
+    
+    # Try to install pre-commit
+    print("Installing pre-commit...", file=sys.stderr)
+    install_success, install_output = run_command([str(venv_python), "-m", "pip", "install", "pre-commit"], repo_path)
+    
+    if install_success:
+        # Install the git hooks
+        hook_success, hook_output = run_command([str(venv_python), "-m", "pre_commit", "install"], repo_path)
+        if hook_success:
+            return True, "Pre-commit installed and configured successfully"
+        else:
+            return False, f"Failed to install pre-commit hooks: {hook_output}"
+    else:
+        return False, f"Failed to install pre-commit: {install_output}"
+
+
 @mcp.tool()
 def start_vibing() -> str:
     """🚀 CALL THIS FIRST before making any code changes! Creates a new git branch and starts auto-committing all file changes every second. Safe to call multiple times - will not create duplicate sessions."""
+    # Ensure pre-commit is set up before starting
+    pre_commit_ok, pre_commit_msg = ensure_pre_commit_setup()
+    if not pre_commit_ok:
+        return f"❌ Cannot start vibing: {pre_commit_msg}\n\nPlease install pre-commit manually:\n  source .venv/bin/activate\n  pip install pre-commit\n  pre-commit install"
+    
     return _start_vibing_impl()
 
 
@@ -353,8 +415,8 @@ def stop_vibing(commit_message: str) -> str:
         pr_title = lines[0] if lines else commit_message
         pr_body = commit_message  # Use full message as body
 
-        # Try to create PR using GitHub CLI
-        success, output = run_git_command(
+        # Try to create PR using GitHub CLI - CRITICAL: use run_command, not run_git_command!
+        success, output = run_command(
             ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
         )
 
