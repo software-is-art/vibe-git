@@ -1,0 +1,6 @@
+Testing the final PR creation bug fix.
+
+Bug: run_git_command() was used for "gh pr create", making it "git gh pr create"
+Fix: Use run_command() directly for non-git commands like gh
+
+This test should result in a proper PR being created.
