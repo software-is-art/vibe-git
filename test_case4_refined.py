@@ -118,7 +118,7 @@ def test_final_checkout_failure_refined():
 
             print(f"\nGit commands executed: {len(git_calls)}")
             for i, cmd in enumerate(git_calls):
-                print(f"  {i+1}. {' '.join(cmd)}")
+                print(f"  {i + 1}. {' '.join(cmd)}")
 
             print(f"\nResult: {result}")
 
