@@ -1,0 +1,4 @@
+Direct fix test - bypassing run_git_command completely.
+
+Used subprocess.run directly for gh pr create to avoid the git prefix issue.
+This should create a working PR!
