@@ -3,10 +3,8 @@ repos:
     # Ruff version
     rev: v0.8.0
     hooks:
-      # Run the linter on push (less intrusive during development)
+      # Run the linter on commit
       - id: ruff
         args: [ --fix ]
-        stages: [pre-push]
-      # Run the formatter on push
+      # Run the formatter on commit
       - id: ruff-format
-        stages: [pre-push]
