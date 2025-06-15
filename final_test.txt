@@ -1,0 +1,3 @@
+Final test of the PR creation bug fix.
+This should create a proper PR when stop_vibing() is called.
+The fix: use run_command() instead of run_git_command() for gh pr create.
