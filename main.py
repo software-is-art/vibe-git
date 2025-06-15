@@ -292,12 +292,8 @@ def stop_vibing(commit_message: str) -> str:
         branch_name = session.branch_name
         # commit_message is now passed directly as parameter
 
-        # Stop the file watcher
-        if session.observer:
-            session.observer.stop()
-            session.observer.join(timeout=2)
-        if session.commit_event:
-            session.commit_event.set()  # Wake up commit worker to exit
+        # NOTE: We keep the file watcher running during stop_vibing
+        # This ensures any hook-induced changes get auto-committed before we finish
 
         # Squash commits using interactive rebase
         # First, find the commit where we branched from main
@@ -335,6 +331,9 @@ def stop_vibing(commit_message: str) -> str:
                 )
                 if not amend_success:
                     return f"❌ Error running hooks on squash commit: {amend_output}"
+
+                # Give file watcher a moment to detect and commit any hook-induced changes
+                time.sleep(2)
             else:
                 return f"❌ Error resetting to base commit: {reset_output}"
 
@@ -389,6 +388,13 @@ def stop_vibing(commit_message: str) -> str:
         )
         if not final_checkout_success:
             return f"❌ Error switching back to main: {final_checkout_output}"
+
+        # NOW we can stop the file watcher - all git operations are complete
+        if session.observer:
+            session.observer.stop()
+            session.observer.join(timeout=2)
+        if session.commit_event:
+            session.commit_event.set()  # Wake up commit worker to exit
 
         # Reset session state
         session.is_vibing = False
