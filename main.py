@@ -348,12 +348,25 @@ def stop_vibing(commit_message: str) -> str:
         if not push_success:
             return f"❌ Error pushing branch: {push_output}"
 
+        # RACE CONDITION FIX: Verify remote branch exists before creating PR
+        import time
+        for attempt in range(3):
+            verify_success, verify_output = run_git_command(
+                ["ls-remote", "--heads", "origin", branch_name], repo_path
+            )
+            if verify_success and branch_name in verify_output:
+                break
+            if attempt < 2:  # Don't sleep on last attempt
+                time.sleep(1)
+        else:
+            return f"❌ Error: Remote branch '{branch_name}' not found after push verification"
+
         # Extract PR title from first line of commit message
         lines = commit_message.strip().split("\n")
         pr_title = lines[0] if lines else commit_message
         pr_body = commit_message  # Use full message as body
 
-        # Try to create PR using GitHub CLI
+        # Try to create PR using GitHub CLI (now safe from race conditions)
         success, output = run_git_command(
             ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
         )
