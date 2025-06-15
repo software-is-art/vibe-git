@@ -1,0 +1,4 @@
+[mutmut]
+paths_to_mutate=main.py
+tests_dir=.
+runner=python -m pytest test_stop_vibing_bug.py test_case4_refined.py -v --tb=short

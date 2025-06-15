@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastmcp>=2.8.0",
+    "mutmut>=3.3.0",
     "watchdog>=6.0.0",
 ]
 
@@ -21,17 +22,23 @@ dev = [
     "pre-commit>=3.5.0",
 ]
 
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
-testpaths = ["."]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.mutmut]
-paths_to_mutate = ["vibe_status_only.py"]
-tests_dir = "."
-runner = "python -m pytest test_status_only.py -x"
+paths_to_mutate = ["src/"]
+tests_dir = ["tests/"]
 
 [tool.ruff]
 target-version = "py313"
@@ -60,5 +67,11 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "ruff>=0.11.13",
+]
+
 [project.scripts]
-vibe-git-mcp = "main:main"
+vibe-git-mcp = "vibe_git.main:main"
