@@ -53,7 +53,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: .mutmut-cache
-        key: mutmut-${{ hashFiles('main.py', 'vibe_status_only.py', 'test_status_only.py', 'pyproject.toml') }}
+        key: mutmut-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'pyproject.toml') }}
         restore-keys: |
           mutmut-
 
@@ -61,7 +61,7 @@ jobs:
       run: |
         # Update pyproject.toml to test main.py
         cp pyproject.toml pyproject.toml.bak
-        sed -i 's/paths_to_mutate = \["vibe_status_only.py"\]/paths_to_mutate = ["main.py"]/' pyproject.toml
+        sed -i 's|paths_to_mutate = \["src/vibe_git/vibe_status_only.py"\]|paths_to_mutate = ["src/vibe_git/main.py"]|' pyproject.toml
         
         # Run mutmut
         uv run mutmut run || true
@@ -78,7 +78,7 @@ jobs:
 
     - name: Run focused mutation testing on vibe_status_only.py
       run: |
-        # Use the default config from pyproject.toml which tests vibe_status_only.py
+        # Use the default config from pyproject.toml which tests src/vibe_git/vibe_status_only.py
         uv run mutmut run || true
         echo "## Mutation Testing Results for vibe_status_only.py" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
@@ -116,4 +116,4 @@ jobs:
 
     - name: Check Python syntax
       run: |
-        uv run python -m py_compile main.py vibe_status_only.py test_status_only.py
+        uv run python -m py_compile src/vibe_git/*.py tests/*.py

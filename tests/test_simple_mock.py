@@ -5,7 +5,7 @@ Simple test to verify our mocking approach works.
 
 from unittest.mock import patch
 
-import main
+from vibe_git import main
 
 
 def test_simple_mock():

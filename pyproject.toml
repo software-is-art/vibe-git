@@ -25,20 +25,20 @@ dev = [
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["main"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["."]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.mutmut]
-paths_to_mutate = ["vibe_status_only.py"]
-tests_dir = "."
-runner = "python -m pytest test_status_only.py -x"
+paths_to_mutate = ["src/vibe_git/vibe_status_only.py"]
+tests_dir = "tests"
+runner = "PYTHONPATH=src python -m pytest tests/test_status_only.py -x"
 
 [tool.ruff]
 target-version = "py313"
@@ -74,4 +74,4 @@ dev = [
 ]
 
 [project.scripts]
-vibe-git-mcp = "main:main"
+vibe-git-mcp = "vibe_git.main:main"

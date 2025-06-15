@@ -3,7 +3,7 @@
 Simple tests for auto-commit mechanism improvements.
 """
 
-import main
+from vibe_git import main
 
 
 def test_auto_commit_worker_simplicity():

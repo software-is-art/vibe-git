@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import main
+from vibe_git import main
 
 
 class GitRepoFixture:
