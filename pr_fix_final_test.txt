@@ -1,0 +1,8 @@
+Final test of the PR creation bug fix.
+
+Changes made:
+1. Added generic run_command() function for any command
+2. Changed stop_vibing() to use run_command() for "gh pr create"
+3. Kept run_git_command() as a wrapper that adds "git" prefix
+
+This should create a proper PR when stop_vibing() is called!
