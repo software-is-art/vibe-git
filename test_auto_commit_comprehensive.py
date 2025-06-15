@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from threading import Event
 from unittest.mock import patch
@@ -89,10 +90,14 @@ def test_auto_commit_worker_pre_commit_success():
             # Simulate one iteration of auto-commit worker (avoid infinite loop)
             try:
                 repo_path = main.find_git_repo()
-                if main.session.commit_event and main.session.commit_event.wait(timeout=1):
+                if main.session.commit_event and main.session.commit_event.wait(
+                    timeout=1
+                ):
                     main.session.commit_event.clear()
                     # Check for actual changes before committing
-                    success, output = main.run_git_command(["status", "--porcelain"], repo_path)
+                    success, output = main.run_git_command(
+                        ["status", "--porcelain"], repo_path
+                    )
                     if success and output.strip():
                         # Add all changes
                         main.run_git_command(["add", "."], repo_path)
@@ -106,12 +111,12 @@ def test_auto_commit_worker_pre_commit_success():
             # Verify git commands were called correctly
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
 
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit command, got {len(commit_commands)}"
-            )
-            assert "--no-verify" not in commit_commands[0], (
-                "Should not use --no-verify when pre-commit succeeds"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit command, got {len(commit_commands)}"
+            assert (
+                "--no-verify" not in commit_commands[0]
+            ), "Should not use --no-verify when pre-commit succeeds"
 
             print("✅ Auto-commit worker correctly handles successful pre-commit hooks")
             return True
@@ -153,10 +158,14 @@ def test_auto_commit_worker_pre_commit_fixes_files():
 
             # Simulate one iteration of auto-commit worker (avoid infinite loop)
             try:
-                if main.session.commit_event and main.session.commit_event.wait(timeout=0.1):
+                if main.session.commit_event and main.session.commit_event.wait(
+                    timeout=0.1
+                ):
                     main.session.commit_event.clear()
                     repo_path = main.find_git_repo()
-                    success, output = main.run_git_command(["status", "--porcelain"], repo_path)
+                    success, output = main.run_git_command(
+                        ["status", "--porcelain"], repo_path
+                    )
                     if success and output.strip():
                         main.run_git_command(["add", "."], repo_path)
                         timestamp = int(time.time())
@@ -167,15 +176,15 @@ def test_auto_commit_worker_pre_commit_fixes_files():
 
             # Should have tried commit twice
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
-            assert len(commit_commands) == 2, (
-                f"Expected 2 commit attempts, got {len(commit_commands)}"
-            )
+            assert (
+                len(commit_commands) == 2
+            ), f"Expected 2 commit attempts, got {len(commit_commands)}"
 
             # Both should be without --no-verify
             for cmd in commit_commands:
-                assert "--no-verify" not in cmd, (
-                    "Should not use --no-verify even when retrying"
-                )
+                assert (
+                    "--no-verify" not in cmd
+                ), "Should not use --no-verify even when retrying"
 
             print("✅ Auto-commit worker correctly handles pre-commit file fixes")
             return True
@@ -214,10 +223,14 @@ def test_auto_commit_worker_pre_commit_missing():
 
             # Simulate one iteration of auto-commit worker (avoid infinite loop)
             try:
-                if main.session.commit_event and main.session.commit_event.wait(timeout=0.1):
+                if main.session.commit_event and main.session.commit_event.wait(
+                    timeout=0.1
+                ):
                     main.session.commit_event.clear()
                     repo_path = main.find_git_repo()
-                    success, output = main.run_git_command(["status", "--porcelain"], repo_path)
+                    success, output = main.run_git_command(
+                        ["status", "--porcelain"], repo_path
+                    )
                     if success and output.strip():
                         main.run_git_command(["add", "."], repo_path)
                         timestamp = int(time.time())
@@ -230,15 +243,15 @@ def test_auto_commit_worker_pre_commit_missing():
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
             reset_commands = [cmd for cmd in git_calls if cmd[0] == "reset"]
 
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit attempt, got {len(commit_commands)}"
-            )
-            assert len(reset_commands) == 1, (
-                f"Expected 1 reset command, got {len(reset_commands)}"
-            )
-            assert "--no-verify" not in commit_commands[0], (
-                "Should not use --no-verify fallback"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit attempt, got {len(commit_commands)}"
+            assert (
+                len(reset_commands) == 1
+            ), f"Expected 1 reset command, got {len(reset_commands)}"
+            assert (
+                "--no-verify" not in commit_commands[0]
+            ), "Should not use --no-verify fallback"
 
             print("✅ Auto-commit worker correctly handles missing pre-commit")
             return True
@@ -277,10 +290,14 @@ def test_auto_commit_worker_syntax_errors():
 
             # Simulate one iteration of auto-commit worker (avoid infinite loop)
             try:
-                if main.session.commit_event and main.session.commit_event.wait(timeout=0.1):
+                if main.session.commit_event and main.session.commit_event.wait(
+                    timeout=0.1
+                ):
                     main.session.commit_event.clear()
                     repo_path = main.find_git_repo()
-                    success, output = main.run_git_command(["status", "--porcelain"], repo_path)
+                    success, output = main.run_git_command(
+                        ["status", "--porcelain"], repo_path
+                    )
                     if success and output.strip():
                         main.run_git_command(["add", "."], repo_path)
                         timestamp = int(time.time())
@@ -293,12 +310,12 @@ def test_auto_commit_worker_syntax_errors():
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
             reset_commands = [cmd for cmd in git_calls if cmd[0] == "reset"]
 
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit attempt, got {len(commit_commands)}"
-            )
-            assert len(reset_commands) == 1, (
-                f"Expected 1 reset after syntax error, got {len(reset_commands)}"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit attempt, got {len(commit_commands)}"
+            assert (
+                len(reset_commands) == 1
+            ), f"Expected 1 reset after syntax error, got {len(reset_commands)}"
 
             print("✅ Auto-commit worker correctly handles syntax errors")
             return True
@@ -335,10 +352,14 @@ def test_simplified_auto_commit_approach():
 
             # Simulate one iteration of auto-commit worker (avoid infinite loop)
             try:
-                if main.session.commit_event and main.session.commit_event.wait(timeout=0.1):
+                if main.session.commit_event and main.session.commit_event.wait(
+                    timeout=0.1
+                ):
                     main.session.commit_event.clear()
                     repo_path = main.find_git_repo()
-                    success, output = main.run_git_command(["status", "--porcelain"], repo_path)
+                    success, output = main.run_git_command(
+                        ["status", "--porcelain"], repo_path
+                    )
                     if success and output.strip():
                         main.run_git_command(["add", "."], repo_path)
                         timestamp = int(time.time())
@@ -349,9 +370,9 @@ def test_simplified_auto_commit_approach():
 
             # Verify simple commit was attempted
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit command, got {len(commit_commands)}"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit command, got {len(commit_commands)}"
 
             # Should not have complex pre-commit handling
             assert "--no-verify" not in commit_commands[0], "Should not bypass hooks"
@@ -365,12 +386,12 @@ def test_no_complex_hook_management():
     print("🧪 Testing absence of complex hook management...")
 
     # Verify removed functions don't exist
-    assert not hasattr(main, "ensure_pre_commit_setup"), (
-        "ensure_pre_commit_setup should be removed"
-    )
-    assert not hasattr(main, "check_code_quality"), (
-        "check_code_quality should be removed"
-    )
+    assert not hasattr(
+        main, "ensure_pre_commit_setup"
+    ), "ensure_pre_commit_setup should be removed"
+    assert not hasattr(
+        main, "check_code_quality"
+    ), "check_code_quality should be removed"
     assert not hasattr(main, "fix_code_quality"), "fix_code_quality should be removed"
 
     print("✅ Complex hook management has been removed")
@@ -399,9 +420,9 @@ def test_file_handler_ignore_patterns():
 
         for path, should_ignore in test_cases:
             result = handler.should_ignore_path(path)
-            assert result == should_ignore, (
-                f"Path {path}: expected ignore={should_ignore}, got {result}"
-            )
+            assert (
+                result == should_ignore
+            ), f"Path {path}: expected ignore={should_ignore}, got {result}"
 
         print("✅ VibeFileHandler correctly handles ignore patterns")
         return True
