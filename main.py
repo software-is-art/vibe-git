@@ -160,6 +160,9 @@ def start_vibing() -> str:
         if success and current_branch.startswith("vibe-"):
             # We're already on a vibe branch - reuse it instead of creating a new one
             session.branch_name = current_branch
+        if success and current_branch.strip().startswith("vibe-"):
+            # We're already on a vibe branch - reuse it instead of creating a new one
+            session.branch_name = current_branch.strip()
             session.is_vibing = True
             
             # Set up file watcher
@@ -183,6 +186,38 @@ def start_vibing() -> str:
             if not success:
                 return "❌ Error: Could not checkout main/master branch. Try manually switching to main first."
         
+            return f"🚀 Started vibing! Reusing existing vibe branch '{current_branch.strip()}' and auto-committing changes on file modifications."
+        
+        # Check for uncommitted changes
+        status_success, status_output = run_git_command(["status", "--porcelain"], repo_path)
+        has_changes = status_success and status_output.strip()
+        
+        if has_changes:
+            # Get current branch for context
+            _, current = run_git_command(["branch", "--show-current"], repo_path)
+            return (
+                f"⚠️ Uncommitted changes detected on branch '{current.strip()}'!\n\n"
+                "Choose one of these functions:\n"
+                "• commit_and_vibe() - Commit changes as 'WIP' then start from main\n"
+                "• stash_and_vibe() - Stash changes then start from main\n"
+                "• vibe_from_here() - Start vibing from current branch with changes\n"
+            )
+        
+        # Ensure we're on main branch and pull latest
+        main_success, _ = run_git_command(["checkout", "main"], repo_path)
+        if main_success:
+            main_branch = "main"
+        else:
+            # Try master if main doesn't exist
+            master_success, _ = run_git_command(["checkout", "master"], repo_path)
+            if master_success:
+                main_branch = "master"
+            else:
+                return "❌ Error: Could not checkout main/master branch. Try manually switching to main first."
+        
+        # Pull latest changes from origin
+        run_git_command(["pull", "origin", main_branch], repo_path)
+        
         # Create and checkout new branch
         success, output = run_git_command(["checkout", "-b", branch_name], repo_path)
         if not success:
@@ -204,6 +239,7 @@ def start_vibing() -> str:
         commit_thread.start()
         
         return f"🚀 Started vibing! Created branch '{branch_name}' and auto-committing changes on file modifications."
+        return f"🚀 Started vibing! Created branch '{branch_name}' from latest {main_branch} and auto-committing changes on file modifications."
         
     except Exception as e:
         return f"❌ Error starting vibe session: {e}"
@@ -212,6 +248,18 @@ def start_vibing() -> str:
 @mcp.tool()
 def stop_vibing(commit_message: str) -> str:
     """🏁 Call this ONLY when the user explicitly says to stop or asks you to stop the session. Squashes all auto-commits into a single commit with your message, rebases onto latest main, and creates a PR. Do NOT call this automatically - wait for user confirmation before stopping. Safe to call even if not vibing."""
+    """🏁 Call this ONLY when the user explicitly says to stop or asks you to stop the session. Squashes all auto-commits into a single commit with your message, rebases onto latest main, and creates a PR. Do NOT call this automatically - wait for user confirmation before stopping. Safe to call even if not vibing.
+    
+    The commit_message should be a comprehensive description that will be used for:
+    - The squashed commit message
+    - The PR title (first line)
+    - The PR body (full message)
+    
+    Format suggestion:
+    "Short summary of changes
+    
+    Detailed description of what was changed, why it was changed,
+    and any important implementation details or decisions."""
     global session
     
     if not session.is_vibing:
@@ -263,9 +311,14 @@ def stop_vibing(commit_message: str) -> str:
         if not success:
             return f"❌ Error pushing branch: {output}"
         
+        # Extract PR title from first line of commit message
+        lines = commit_message.strip().split('\n')
+        pr_title = lines[0] if lines else commit_message
+        pr_body = commit_message  # Use full message as body
+        
         # Try to create PR using GitHub CLI
         success, output = run_git_command(
-            ["gh", "pr", "create", "--title", commit_message, "--body", f"Vibe session completed.\n\n{commit_message}"],
+            ["gh", "pr", "create", "--title", pr_title, "--body", pr_body],
             repo_path
         )
         
@@ -293,6 +346,116 @@ def stop_vibing(commit_message: str) -> str:
 
 
 @mcp.tool()
+def stash_and_vibe() -> str:
+    """📦 Stash uncommitted changes and start a new vibe session from main. Your changes will be saved and can be restored later with 'git stash pop'."""
+    try:
+        repo_path = find_git_repo()
+        
+        # Check for changes to stash
+        status_success, status_output = run_git_command(["status", "--porcelain"], repo_path)
+        if not (status_success and status_output.strip()):
+            return "No changes to stash. Proceeding to start vibe session..."
+        
+        # Stash changes
+        success, output = run_git_command(["stash", "push", "-m", "Pre-vibe stash"], repo_path)
+        if not success:
+            return f"❌ Error stashing changes: {output}"
+        
+        # Now start vibing
+        return start_vibing() + "\n\n💡 Your changes are stashed. Run 'git stash pop' after vibing to restore them."
+        
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def commit_and_vibe() -> str:
+    """💾 Commit all uncommitted changes as 'WIP' and start a new vibe session from main."""
+    try:
+        repo_path = find_git_repo()
+        
+        # Check for changes
+        status_success, status_output = run_git_command(["status", "--porcelain"], repo_path)
+        if not (status_success and status_output.strip()):
+            return "No changes to commit. Proceeding to start vibe session..."
+        
+        # Add all changes
+        success, _ = run_git_command(["add", "."], repo_path)
+        if not success:
+            return "❌ Error adding changes. Check if files are ignored by .gitignore"
+        
+        # Commit as WIP
+        success, output = run_git_command(["commit", "-m", "WIP: Pre-vibe commit"], repo_path)
+        if not success:
+            return f"❌ Error committing changes: {output}"
+        
+        # Now start vibing
+        return start_vibing() + "\n\n✅ Your changes were committed as 'WIP: Pre-vibe commit'"
+        
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+@mcp.tool()
+def vibe_from_here() -> str:
+    """🌿 Start vibing from the current branch with all existing changes. Any uncommitted changes will be auto-committed as part of the vibe session."""
+    global session
+    
+    if session.is_vibing:
+        return "Already vibing! Session is active and auto-committing changes."
+    
+    try:
+        repo_path = find_git_repo()
+        
+        # Get current branch
+        success, current_branch = run_git_command(["branch", "--show-current"], repo_path)
+        if not success:
+            return "❌ Error: Could not determine current branch"
+        current_branch = current_branch.strip()
+        
+        # Generate vibe branch name if not already on one
+        if not current_branch.startswith("vibe-"):
+            timestamp = int(time.time())
+            branch_name = f"vibe-{timestamp}"
+            
+            # Create new branch from current position
+            success, output = run_git_command(["checkout", "-b", branch_name], repo_path)
+            if not success:
+                return f"❌ Error creating branch: {output}"
+        else:
+            branch_name = current_branch
+        
+        # Start auto-commit watcher
+        session.branch_name = branch_name
+        session.is_vibing = True
+        
+        # Set up file watcher
+        session.commit_event = Event()
+        session.observer = Observer()
+        event_handler = VibeFileHandler(repo_path, session.commit_event)
+        session.observer.schedule(event_handler, path=str(repo_path), recursive=True)
+        session.observer.start()
+        
+        # Start commit worker thread
+        commit_thread = Thread(target=auto_commit_worker, daemon=True)
+        commit_thread.start()
+        
+        # Check for uncommitted changes
+        status_success, status_output = run_git_command(["status", "--porcelain"], repo_path)
+        has_changes = status_success and status_output.strip()
+        
+        if has_changes:
+            # Trigger immediate commit of existing changes
+            session.commit_event.set()
+            return f"🚀 Started vibing on branch '{branch_name}'! Existing uncommitted changes will be auto-committed shortly."
+        else:
+            return f"🚀 Started vibing on branch '{branch_name}'! Auto-committing future changes."
+        
+    except Exception as e:
+        return f"❌ Error starting vibe session: {e}"
+
+
+@mcp.tool()
 def vibe_status() -> str:
     """📊 Check the current vibe session status - whether you're currently vibing or idle. Use this to understand the current state."""
     try:
@@ -302,6 +465,15 @@ def vibe_status() -> str:
             # Get current branch to confirm
             success, current_branch = run_git_command(["branch", "--show-current"], repo_path)
             if success and current_branch == session.branch_name:
+        # Get current branch
+        success, current_branch = run_git_command(["branch", "--show-current"], repo_path)
+        if not success:
+            return "⚪ NOT INITIALIZED: Could not determine current branch"
+        current_branch = current_branch.strip()  # Remove any whitespace
+        
+        # Check if we have an active vibe session
+        if session.is_vibing and session.branch_name:
+            if current_branch == session.branch_name:
                 return f"🟢 VIBING: Active session on branch '{session.branch_name}' - auto-committing changes on file modifications"
             else:
                 # Session state is inconsistent, reset it
@@ -310,6 +482,12 @@ def vibe_status() -> str:
                 return "🔵 IDLE: Ready to start vibing (session state was reset due to branch mismatch)"
         else:
             return "🔵 IDLE: Ready to start vibing. Call start_vibing() to begin!"
+        
+        # Check if we're on a vibe branch but session is idle (e.g., after MCP restart)
+        if current_branch.startswith("vibe-") and not session.is_vibing:
+            return f"🟡 VIBE BRANCH DETECTED: On branch '{current_branch}' but session is idle. Call start_vibing() to resume or vibe_from_here() to restart watching."
+        
+        return "🔵 IDLE: Ready to start vibing. Call start_vibing() to begin!"
             
     except Exception as e:
         return f"⚪ NOT INITIALIZED: Error checking repository status: {e}"
