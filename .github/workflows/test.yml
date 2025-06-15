@@ -104,4 +104,4 @@ jobs:
 
     - name: Check Python syntax
       run: |
-        uv run python -m py_compile main.py test_vibe_git.py vibe_status_only.py test_status_only.py
+        uv run python -m py_compile main.py vibe_status_only.py test_status_only.py
