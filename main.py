@@ -322,12 +322,19 @@ def stop_vibing(commit_message: str) -> str:
                 ["reset", "--soft", base_commit], repo_path
             )
             if reset_success:
-                # Create squash commit
+                # Create squash commit bypassing hooks initially (avoid hook failures on intermediate state)
                 squash_success, squash_output = run_git_command(
-                    ["commit", "-m", commit_message], repo_path
+                    ["commit", "-m", commit_message, "--no-verify"], repo_path
                 )
                 if not squash_success:
                     return f"❌ Error creating squash commit: {squash_output}"
+
+                # Now amend to let hooks run and potentially fix formatting
+                amend_success, amend_output = run_git_command(
+                    ["commit", "--amend", "--no-edit"], repo_path
+                )
+                if not amend_success:
+                    return f"❌ Error running hooks on squash commit: {amend_output}"
             else:
                 return f"❌ Error resetting to base commit: {reset_output}"
 
