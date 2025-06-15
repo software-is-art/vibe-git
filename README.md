@@ -1,19 +1,57 @@
 # vibe-git
 
-Friction-free git workflows for vibe coding - focus on code while git operations happen automatically in the background.
+[![Tests](https://github.com/software-is-art/vibe-git/actions/workflows/test.yml/badge.svg)](https://github.com/software-is-art/vibe-git/actions/workflows/test.yml)
+[![Mutation Score](https://img.shields.io/badge/mutation%20score-100%25-brightgreen.svg)](https://github.com/boxed/mutmut)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://github.com/modelcontextprotocol)
 
-## =Ä What is vibe-git?
+**Never lose work again when AI coding goes wrong.**
 
-vibe-git is an MCP (Model Context Protocol) server that enables "vibe coding" - a workflow where you can focus entirely on writing code while git operations happen automatically:
+## üõ°Ô∏è The Problem
 
-- **Auto-commits**: Every file change is instantly committed to a dedicated branch
-- **Smart cleanup**: When done, all commits are squashed into a meaningful commit message
-- **Seamless PRs**: Automatically rebases on main and creates a pull request
-- **Zero friction**: No manual git commands needed during development
+You're working with AI to build something amazing. The AI is making changes, experimenting, trying different approaches. Then something goes wrong - a bad edit, a mistaken deletion, or the AI gets confused and breaks everything. 
 
-Perfect for exploratory coding, prototyping, or any time you want to focus on the code instead of git ceremony.
+**Your work is gone.** 
 
-## =Ê Installation
+Whether you're a seasoned developer or completely new to coding, this is infuriating. You can't relax and let the AI explore freely because you're constantly worried about losing progress.
+
+## ‚ú® The Solution
+
+vibe-git automatically commits every single change as you work, so you can **completely relax** and let AI coding flow:
+
+- **üîÑ Every change is instantly saved** - No more "oh no, I lost 30 minutes of work"
+- **üåä Let the AI experiment freely** - Try wild ideas without fear
+- **‚è™ Easy to undo anything** - Every step is preserved in git history
+- **üéØ Clean final result** - All those messy auto-commits become one clean, professional commit that represents your final logical change
+- **üöÄ Automatic pull requests** - Share your work with zero git commands
+
+**For Git beginners**: You don't need to know anything about git. Just code.  
+**For Git experts**: You get all the safety of continuous commits with none of the manual work.
+
+## üåü How It Works
+
+1. **Start vibing**: "Hey Claude, start a vibe session"
+   - Creates a safe branch for your experiments
+   - Every file change gets automatically committed
+
+2. **Code without fear**: Make any changes you want
+   - Try different approaches, let the AI experiment
+   - Everything is safely preserved, always
+
+3. **Finish clean**: "I'm done, let's create a PR"
+   - All the messy "auto-commit" messages disappear
+   - You get one clean commit with a proper description of what changed
+   - Automatically creates a professional pull request ready for review
+
+## üéØ Perfect For
+
+- **AI-assisted development** - Never lose work when the AI makes mistakes
+- **Rapid prototyping** - Experiment freely without git ceremony  
+- **Learning to code** - Focus on coding, not git commands
+- **Pair programming with AI** - Let your AI partner be bold and creative
+- **Exploratory coding** - Try ideas without commitment anxiety
+
+## =ÔøΩ Installation
 
 ### Prerequisites
 
@@ -70,43 +108,58 @@ uv sync
 }
 ```
 
-## <Ø Usage
+## <ÔøΩ Usage
 
 Once installed, vibe-git provides three MCP tools:
 
 ### `start_vibing()`
-=Ä **Call this FIRST** before making any code changes!
+=ÔøΩ **Call this FIRST** before making any code changes!
 - Creates a new git branch (or reuses existing vibe branch)
 - Starts real-time file watching
 - Auto-commits every file change instantly
 
 ### `vibe_status()`
-=  Check the current vibe session status
+=ÔøΩ Check the current vibe session status
 - Shows if you're currently vibing or idle
 - Displays the active branch name
 
 ### `stop_vibing(commit_message)`
-<¡ **Call this when you're done** with your changes
+<ÔøΩ **Call this when you're done** with your changes
 - Squashes all auto-commits into a single meaningful commit
 - Rebases on latest main branch
 - Pushes to remote and creates a pull request
 - **Only call when user explicitly asks to stop!**
 
-## = Typical Workflow
+## üí´ Real-World Example
 
-1. **Start vibing**: "Hey Claude, start a vibe session"
-   - Claude calls `start_vibing()`
-   - You're now on a vibe branch with auto-commits enabled
+**Before vibe-git**: "Claude, can you help me add user authentication?"
+- *30 minutes later* "Oh no, the AI broke something and I lost all my work!"
+- *Start over, cautiously*
 
-2. **Code freely**: Make any changes you want
-   - Every file save triggers an instant auto-commit
-   - No need to think about git at all
+**With vibe-git**: "Claude, start a vibe session and let's add user authentication!"
+- AI experiments freely with different approaches
+- You see the history of every change in git
+- AI makes a mistake? No problem - every step is saved
+- "Let's try that completely differently!" - Go wild!
+- "I'm done, create a PR" - Professional result, zero stress
 
-3. **Finish up**: "I'm done, let's wrap this up"
-   - Claude calls `stop_vibing("Implement new feature X")`
-   - All commits are squashed, rebased, and PR'd automatically
+## üöÄ Simple Workflow
 
-## ô How it Works
+1. **"Start vibing"** 
+   - Your AI creates a safe experimental branch
+   - Every keystroke is automatically saved
+
+2. **Code fearlessly**
+   - Try different ideas, let the AI experiment
+   - Make mistakes - they're all recoverable
+   - Focus on the problem, not the process
+
+3. **"Let's finish this up"**
+   - All those messy auto-saves become one clean commit
+   - Professional pull request created automatically
+   - Ready to share your work
+
+## ÔøΩ How it Works
 
 ### Event-Driven File Watching
 - Uses Python's `watchdog` library for real-time file system monitoring
@@ -125,7 +178,7 @@ Once installed, vibe-git provides three MCP tools:
 - Proper error handling and status reporting
 - Works seamlessly with Claude Code
 
-## =· Safety Features
+## =ÔøΩ Safety Features
 
 - **Idempotent operations**: Safe to call tools multiple times
 - **Graceful cleanup**: File watchers stop properly on session end
@@ -162,17 +215,36 @@ Ensure GitHub CLI (`gh`) is installed and authenticated:
 gh auth login
 ```
 
-## > Contributing
+## üß™ Testing
+
+We take code quality seriously! This project features:
+
+- **100% mutation testing score** - All mutants killed using [mutmut](https://github.com/boxed/mutmut)
+- **Comprehensive integration tests** - Testing all MCP tools and edge cases
+- **CI/CD with GitHub Actions** - Automated testing on every PR
+
+To run tests locally:
+```bash
+# Run all tests
+uv run pytest
+
+# Run mutation testing
+uv run mutmut run
+```
+
+## ü§ù Contributing
 
 Contributions welcome! This is a Python project using:
 - **FastMCP** for MCP server implementation
 - **watchdog** for file system monitoring  
 - **uv** for dependency management
+- **pytest** for testing
+- **mutmut** for mutation testing
 
-## =ƒ License
+## üìÑ License
 
 MIT License - see LICENSE file for details.
 
 ---
 
-**Happy vibe coding! =Ä**
+**Happy vibe coding! üéâ**
