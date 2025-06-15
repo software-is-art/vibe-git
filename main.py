@@ -52,11 +52,11 @@ def find_git_repo() -> Path:
     raise RuntimeError("Not in a git repository")
 
 
-def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
-    """Run a git command and return (success, output)"""
+def run_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run any command and return (success, output)"""
     try:
         result = subprocess.run(
-            ["git"] + args,
+            args,
             cwd=cwd or find_git_repo(),
             capture_output=True,
             text=True,
@@ -65,6 +65,11 @@ def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str
         return result.returncode == 0, result.stdout.strip() or result.stderr.strip()
     except Exception as e:
         return False, str(e)
+
+
+def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run a git command and return (success, output)"""
+    return run_command(["git"] + args, cwd)
 
 
 class VibeFileHandler(FileSystemEventHandler):
@@ -317,30 +322,12 @@ def stop_vibing(commit_message: str) -> str:
                 ["reset", "--soft", base_commit], repo_path
             )
             if reset_success:
-                # Try to create squash commit - this may fail due to pre-commit hooks
+                # Create squash commit
                 squash_success, squash_output = run_git_command(
                     ["commit", "-m", commit_message], repo_path
                 )
                 if not squash_success:
-                    # Pre-commit hooks failed - provide helpful feedback to the model
-                    if (
-                        "pre-commit" in squash_output.lower()
-                        or "hook" in squash_output.lower()
-                    ):
-                        return f"""❌ Pre-commit hooks failed during squash commit:
-
-{squash_output}
-
-The code quality checks found issues that need to be fixed before creating the PR.
-Please fix these issues and run stop_vibing() again.
-
-To see what needs to be fixed, you can run:
-- uv run ruff check .
-- uv run ruff format .
-
-Or manually review the files mentioned in the error above."""
-                    else:
-                        return f"❌ Error creating squash commit: {squash_output}"
+                    return f"❌ Error creating squash commit: {squash_output}"
             else:
                 return f"❌ Error resetting to base commit: {reset_output}"
 
@@ -381,7 +368,7 @@ Or manually review the files mentioned in the error above."""
         pr_body = commit_message  # Use full message as body
 
         # Try to create PR using GitHub CLI
-        success, output = run_git_command(
+        success, output = run_command(
             ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
         )
 
@@ -478,132 +465,6 @@ def commit_and_vibe() -> str:
 
     except Exception as e:
         return f"❌ Error: {e}"
-
-
-@mcp.tool()
-def check_code_quality() -> str:
-    """🔍 Check code quality and formatting. Run this if stop_vibing() fails due to linting issues."""
-    repo_path = find_git_repo()
-
-    # Check for linting issues
-    try:
-        result = subprocess.run(
-            ["uv", "run", "ruff", "check", "."],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        ruff_check_success = result.returncode == 0
-        ruff_check_output = result.stdout.strip() or result.stderr.strip()
-    except Exception as e:
-        ruff_check_success = False
-        ruff_check_output = str(e)
-
-    # Check formatting
-    try:
-        result = subprocess.run(
-            ["uv", "run", "ruff", "format", "--check", "."],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        ruff_format_success = result.returncode == 0
-        ruff_format_output = result.stdout.strip() or result.stderr.strip()
-    except Exception as e:
-        ruff_format_success = False
-        ruff_format_output = str(e)
-
-    result = "🔍 Code Quality Check Results:\n\n"
-
-    if ruff_check_success:
-        result += "✅ Linting: All checks passed!\n"
-    else:
-        result += f"❌ Linting issues found:\n{ruff_check_output}\n\n"
-        result += "💡 To fix automatically: uv run ruff check --fix .\n\n"
-
-    if ruff_format_success:
-        result += "✅ Formatting: All files properly formatted!\n"
-    else:
-        result += f"❌ Formatting issues found:\n{ruff_format_output}\n\n"
-        result += "💡 To fix automatically: uv run ruff format .\n\n"
-
-    if ruff_check_success and ruff_format_success:
-        result += "🎉 All code quality checks passed! You can run stop_vibing() now."
-    else:
-        result += "🔧 Please fix the issues above, then run stop_vibing() again."
-
-    return result
-
-
-@mcp.tool()
-def fix_code_quality() -> str:
-    """🔧 Automatically fix code quality issues (formatting and auto-fixable linting problems)."""
-    repo_path = find_git_repo()
-
-    result = "🔧 Fixing code quality issues:\n\n"
-
-    # Fix linting issues
-    try:
-        result_run = subprocess.run(
-            ["uv", "run", "ruff", "check", "--fix", "."],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        ruff_fix_success = result_run.returncode == 0
-        ruff_fix_output = result_run.stdout.strip() or result_run.stderr.strip()
-    except Exception as e:
-        ruff_fix_success = False
-        ruff_fix_output = str(e)
-
-    if ruff_fix_success:
-        result += "✅ Auto-fixed linting issues\n"
-    else:
-        result += f"⚠️ Some linting issues require manual fixing:\n{ruff_fix_output}\n\n"
-
-    # Fix formatting
-    try:
-        result_run = subprocess.run(
-            ["uv", "run", "ruff", "format", "."],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        ruff_format_success = result_run.returncode == 0
-        ruff_format_output = result_run.stdout.strip() or result_run.stderr.strip()
-    except Exception as e:
-        ruff_format_success = False
-        ruff_format_output = str(e)
-
-    if ruff_format_success:
-        result += "✅ Fixed formatting issues\n"
-    else:
-        result += f"❌ Formatting failed:\n{ruff_format_output}\n\n"
-
-    # Check final status
-    try:
-        result_run = subprocess.run(
-            ["uv", "run", "ruff", "check", "."],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        check_success = result_run.returncode == 0
-        check_output = result_run.stdout.strip() or result_run.stderr.strip()
-    except Exception as e:
-        check_success = False
-        check_output = str(e)
-    if check_success:
-        result += "\n🎉 All fixable issues resolved! You can run stop_vibing() now."
-    else:
-        result += f"\n⚠️ Some issues still need manual fixing:\n{check_output}\n\nPlease address these manually, then run stop_vibing()."
-
-    return result
 
 
 @mcp.tool()
