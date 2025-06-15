@@ -95,12 +95,12 @@ def test_auto_commit_worker_pre_commit_success():
             # Verify git commands were called correctly
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
 
-            assert (
-                len(commit_commands) == 1
-            ), f"Expected 1 commit command, got {len(commit_commands)}"
-            assert (
-                "--no-verify" not in commit_commands[0]
-            ), "Should not use --no-verify when pre-commit succeeds"
+            assert len(commit_commands) == 1, (
+                f"Expected 1 commit command, got {len(commit_commands)}"
+            )
+            assert "--no-verify" not in commit_commands[0], (
+                "Should not use --no-verify when pre-commit succeeds"
+            )
 
             print("✅ Auto-commit worker correctly handles successful pre-commit hooks")
             return True
@@ -147,15 +147,15 @@ def test_auto_commit_worker_pre_commit_fixes_files():
 
             # Should have tried commit twice
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
-            assert (
-                len(commit_commands) == 2
-            ), f"Expected 2 commit attempts, got {len(commit_commands)}"
+            assert len(commit_commands) == 2, (
+                f"Expected 2 commit attempts, got {len(commit_commands)}"
+            )
 
             # Both should be without --no-verify
             for cmd in commit_commands:
-                assert (
-                    "--no-verify" not in cmd
-                ), "Should not use --no-verify even when retrying"
+                assert "--no-verify" not in cmd, (
+                    "Should not use --no-verify even when retrying"
+                )
 
             print("✅ Auto-commit worker correctly handles pre-commit file fixes")
             return True
@@ -201,15 +201,15 @@ def test_auto_commit_worker_pre_commit_missing():
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
             reset_commands = [cmd for cmd in git_calls if cmd[0] == "reset"]
 
-            assert (
-                len(commit_commands) == 1
-            ), f"Expected 1 commit attempt, got {len(commit_commands)}"
-            assert (
-                len(reset_commands) == 1
-            ), f"Expected 1 reset command, got {len(reset_commands)}"
-            assert (
-                "--no-verify" not in commit_commands[0]
-            ), "Should not use --no-verify fallback"
+            assert len(commit_commands) == 1, (
+                f"Expected 1 commit attempt, got {len(commit_commands)}"
+            )
+            assert len(reset_commands) == 1, (
+                f"Expected 1 reset command, got {len(reset_commands)}"
+            )
+            assert "--no-verify" not in commit_commands[0], (
+                "Should not use --no-verify fallback"
+            )
 
             print("✅ Auto-commit worker correctly handles missing pre-commit")
             return True
@@ -255,12 +255,12 @@ def test_auto_commit_worker_syntax_errors():
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
             reset_commands = [cmd for cmd in git_calls if cmd[0] == "reset"]
 
-            assert (
-                len(commit_commands) == 1
-            ), f"Expected 1 commit attempt, got {len(commit_commands)}"
-            assert (
-                len(reset_commands) == 1
-            ), f"Expected 1 reset after syntax error, got {len(reset_commands)}"
+            assert len(commit_commands) == 1, (
+                f"Expected 1 commit attempt, got {len(commit_commands)}"
+            )
+            assert len(reset_commands) == 1, (
+                f"Expected 1 reset after syntax error, got {len(reset_commands)}"
+            )
 
             print("✅ Auto-commit worker correctly handles syntax errors")
             return True
@@ -354,9 +354,9 @@ def test_file_handler_ignore_patterns():
 
         for path, should_ignore in test_cases:
             result = handler.should_ignore_path(path)
-            assert (
-                result == should_ignore
-            ), f"Path {path}: expected ignore={should_ignore}, got {result}"
+            assert result == should_ignore, (
+                f"Path {path}: expected ignore={should_ignore}, got {result}"
+            )
 
         print("✅ VibeFileHandler correctly handles ignore patterns")
         return True

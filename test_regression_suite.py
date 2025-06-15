@@ -184,9 +184,9 @@ def test_regression_stop_vibing_checkout_bug():
             ["git", "branch", "--show-current"], capture_output=True, text=True
         ).stdout.strip()
 
-        assert current_branch.startswith(
-            "vibe-"
-        ), f"Expected vibe branch, got {current_branch}"
+        assert current_branch.startswith("vibe-"), (
+            f"Expected vibe branch, got {current_branch}"
+        )
 
         # Make changes
         Path("checkout_test.txt").write_text("Testing checkout fix")
