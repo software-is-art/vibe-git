@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastmcp>=2.8.0",
+    "mutmut>=3.3.0",
     "watchdog>=6.0.0",
 ]
 
@@ -36,9 +37,8 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.mutmut]
-paths_to_mutate = ["src/vibe_git/vibe_status_only.py"]
+paths_to_mutate = ["src/"]
 tests_dir = ["tests/"]
-runner = "uv run python -m pytest tests/test_status_only.py -x --disable-warnings"
 
 [tool.ruff]
 target-version = "py313"
