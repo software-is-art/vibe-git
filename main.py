@@ -318,21 +318,35 @@ def stop_vibing(commit_message: str) -> str:
                 run_git_command(["commit", "-m", commit_message], repo_path)
 
         # Checkout main and pull latest
-        run_git_command(["checkout", "main"], repo_path)
-        run_git_command(["pull", "origin", "main"], repo_path)
+        checkout_success, checkout_output = run_git_command(
+            ["checkout", "main"], repo_path
+        )
+        if not checkout_success:
+            return f"❌ Error checking out main: {checkout_output}"
+
+        pull_success, pull_output = run_git_command(
+            ["pull", "origin", "main"], repo_path
+        )
+        if not pull_success:
+            return f"❌ Error pulling latest main: {pull_output}"
 
         # Rebase our branch
-        run_git_command(["checkout", branch_name], repo_path)
-        success, output = run_git_command(["rebase", "main"], repo_path)
-        if not success:
-            return f"❌ Error rebasing: {output}"
+        vibe_checkout_success, vibe_checkout_output = run_git_command(
+            ["checkout", branch_name], repo_path
+        )
+        if not vibe_checkout_success:
+            return f"❌ Error checking out vibe branch: {vibe_checkout_output}"
+
+        rebase_success, rebase_output = run_git_command(["rebase", "main"], repo_path)
+        if not rebase_success:
+            return f"❌ Error rebasing: {rebase_output}"
 
         # Push branch
-        success, output = run_git_command(
+        push_success, push_output = run_git_command(
             ["push", "-u", "origin", branch_name], repo_path
         )
-        if not success:
-            return f"❌ Error pushing branch: {output}"
+        if not push_success:
+            return f"❌ Error pushing branch: {push_output}"
 
         # Extract PR title from first line of commit message
         lines = commit_message.strip().split("\n")
@@ -347,6 +361,13 @@ def stop_vibing(commit_message: str) -> str:
         pr_info = ""
         if success:
             pr_info = f"\n📋 Created PR: {output}"
+
+        # CRITICAL FIX: Switch back to main branch before finishing
+        final_checkout_success, final_checkout_output = run_git_command(
+            ["checkout", "main"], repo_path
+        )
+        if not final_checkout_success:
+            return f"❌ Error switching back to main: {final_checkout_output}"
 
         # Reset session state
         session.is_vibing = False
