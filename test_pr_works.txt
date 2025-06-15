@@ -1,0 +1,6 @@
+Testing the persistent PR creation fix.
+
+The issue: run_git_command() was being used for "gh pr create" which made it "git gh pr create"
+The fix: Use run_command() directly for non-git commands
+
+This should finally create a working PR!

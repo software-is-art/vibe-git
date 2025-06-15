@@ -52,11 +52,11 @@ def find_git_repo() -> Path:
     raise RuntimeError("Not in a git repository")
 
 
-def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
-    """Run a git command and return (success, output)"""
+def run_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run any command and return (success, output)"""
     try:
         result = subprocess.run(
-            ["git"] + args,
+            args,
             cwd=cwd or find_git_repo(),
             capture_output=True,
             text=True,
@@ -65,6 +65,11 @@ def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str
         return result.returncode == 0, result.stdout.strip() or result.stderr.strip()
     except Exception as e:
         return False, str(e)
+
+
+def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run a git command and return (success, output)"""
+    return run_command(["git"] + args, cwd)
 
 
 class VibeFileHandler(FileSystemEventHandler):
@@ -353,8 +358,8 @@ def stop_vibing(commit_message: str) -> str:
         pr_title = lines[0] if lines else commit_message
         pr_body = commit_message  # Use full message as body
 
-        # Try to create PR using GitHub CLI
-        success, output = run_git_command(
+        # Try to create PR using GitHub CLI (use run_command, not run_git_command!)
+        success, output = run_command(
             ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
         )
 
