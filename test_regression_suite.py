@@ -11,36 +11,36 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import main
 
 
 class GitRepoFixture:
     """Helper class to create temporary git repositories for testing"""
-    
+
     def __init__(self):
         self.temp_dir = None
         self.original_cwd = None
-        
+
     def __enter__(self):
         self.original_cwd = os.getcwd()
         self.temp_dir = tempfile.mkdtemp(prefix="vibe_regression_test_")
         os.chdir(self.temp_dir)
-        
+
         # Initialize git repo
         subprocess.run(["git", "init"], check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test User"], check=True)
         subprocess.run(["git", "config", "user.email", "test@example.com"], check=True)
-        
+
         # Create initial commit
         Path("README.md").write_text("# Test Repository")
         subprocess.run(["git", "add", "README.md"], check=True)
         subprocess.run(["git", "commit", "-m", "Initial commit"], check=True)
         subprocess.run(["git", "branch", "-M", "main"], check=True)
-        
+
         return self.temp_dir
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.original_cwd:
             os.chdir(self.original_cwd)
@@ -51,27 +51,27 @@ class GitRepoFixture:
 def test_regression_pr_creation_bug():
     """
     REGRESSION TEST: Ensure PR creation doesn't use run_git_command for gh commands.
-    
-    Bug: stop_vibing() used run_git_command() for "gh pr create" which became 
+
+    Bug: stop_vibing() used run_git_command() for "gh pr create" which became
     "git gh pr create" (invalid command).
-    
+
     Fix: Use subprocess directly or run_command() for non-git commands.
     """
     print("🔄 REGRESSION: Testing PR creation bug fix...")
-    
+
     with GitRepoFixture():
         # Start a vibe session
         result = main.start_vibing.fn()
         assert "Started vibing" in result or "vibing" in result.lower()
-        
+
         # Make changes
         Path("test_pr.txt").write_text("Testing PR creation")
         time.sleep(2)  # Wait for auto-commit
-        
+
         # Mock run_git_command to detect if it's incorrectly used for gh commands
         original_run_git_command = main.run_git_command
         gh_commands_via_git = []
-        
+
         def mock_run_git_command(cmd, repo_path):
             # Record any gh commands that incorrectly go through run_git_command
             if len(cmd) > 0 and cmd[0] == "gh":
@@ -79,7 +79,7 @@ def test_regression_pr_creation_bug():
                 # This would fail in real scenario
                 return False, "git: 'gh' is not a git command"
             return original_run_git_command(cmd, repo_path)
-        
+
         # Mock subprocess.run to simulate successful gh pr create
         def mock_subprocess_run(*args, **kwargs):
             if args[0][0] == "gh" and "pr" in args[0] and "create" in args[0]:
@@ -91,16 +91,18 @@ def test_regression_pr_creation_bug():
                 return result_mock
             # For other commands, use real subprocess
             return subprocess.run(*args, **kwargs)
-        
-        with patch.object(main, 'run_git_command', side_effect=mock_run_git_command):
-            with patch('subprocess.run', side_effect=mock_subprocess_run):
+
+        with patch.object(main, "run_git_command", side_effect=mock_run_git_command):
+            with patch("subprocess.run", side_effect=mock_subprocess_run):
                 result = main.stop_vibing.fn("Test PR creation regression")
-                
+
                 # The bug would manifest as gh commands being sent to run_git_command
                 if gh_commands_via_git:
-                    print(f"❌ REGRESSION DETECTED: gh commands sent to run_git_command: {gh_commands_via_git}")
+                    print(
+                        f"❌ REGRESSION DETECTED: gh commands sent to run_git_command: {gh_commands_via_git}"
+                    )
                     return False
-                
+
                 # Should succeed without using run_git_command for gh
                 print("✅ PR creation correctly uses subprocess, not run_git_command")
                 return True
@@ -109,32 +111,32 @@ def test_regression_pr_creation_bug():
 def test_regression_auto_commit_no_verify_bypass():
     """
     REGRESSION TEST: Ensure auto-commit doesn't use --no-verify to bypass hooks.
-    
+
     Bug: Auto-commit used --no-verify which bypassed important pre-commit hooks,
     allowing poorly formatted code to be committed.
-    
+
     Fix: Always try pre-commit hooks first, handle failures gracefully.
     """
     print("🔄 REGRESSION: Testing auto-commit --no-verify bypass...")
-    
+
     # Check that the auto_commit_worker function doesn't contain --no-verify
     import inspect
-    
+
     source = inspect.getsource(main.auto_commit_worker)
-    
+
     # The regression would be if --no-verify appears in the auto-commit code
     if "--no-verify" in source:
         print("❌ REGRESSION DETECTED: auto_commit_worker uses --no-verify")
         print("This bypasses pre-commit hooks and reduces code quality!")
         return False
-    
+
     print("✅ Auto-commit correctly respects pre-commit hooks")
-    
+
     # Additional check: ensure error handling mentions pre-commit
     if "pre-commit" not in source.lower():
         print("❌ REGRESSION: No pre-commit handling found in auto_commit_worker")
         return False
-    
+
     print("✅ Auto-commit has proper pre-commit error handling")
     return True
 
@@ -142,64 +144,66 @@ def test_regression_auto_commit_no_verify_bypass():
 def test_regression_stop_vibing_checkout_bug():
     """
     REGRESSION TEST: Ensure stop_vibing() returns user to main branch.
-    
+
     Bug: stop_vibing() would complete successfully but leave user on vibe branch
     instead of returning to main, causing confusion and workflow issues.
-    
+
     Fix: Added explicit final checkout to main branch with error handling.
     """
     print("🔄 REGRESSION: Testing stop_vibing checkout bug...")
-    
+
     # Check that the final checkout code exists in stop_vibing
     import inspect
-    
+
     source = inspect.getsource(main.stop_vibing)
-    
+
     # Check for the critical fix
     if "CRITICAL FIX" not in source:
         print("❌ REGRESSION: Critical checkout fix comment missing")
         return False
-    
+
     if "final_checkout" not in source:
         print("❌ REGRESSION: Final checkout code missing")
         return False
-    
+
     if "Error switching back to main" not in source:
         print("❌ REGRESSION: Final checkout error handling missing")
         return False
-    
+
     print("✅ stop_vibing() has final checkout to main branch")
     print("✅ Final checkout has proper error handling")
-    
+
     # Functional test
     with GitRepoFixture():
         # Start vibing
         result = main.start_vibing.fn()
         assert "Started vibing" in result or "vibing" in result.lower()
-        
+
         # Get current branch (should be vibe branch)
         current_branch = subprocess.run(
             ["git", "branch", "--show-current"], capture_output=True, text=True
         ).stdout.strip()
-        
-        assert current_branch.startswith("vibe-"), f"Expected vibe branch, got {current_branch}"
-        
+
+        assert current_branch.startswith(
+            "vibe-"
+        ), f"Expected vibe branch, got {current_branch}"
+
         # Make changes
         Path("checkout_test.txt").write_text("Testing checkout fix")
         time.sleep(2)  # Wait for auto-commit
-        
+
         # Stop vibing - this should return us to main
         result = main.stop_vibing.fn("Test checkout regression")
-        
+
         # Check we're back on main
         final_branch = subprocess.run(
             ["git", "branch", "--show-current"], capture_output=True, text=True
         ).stdout.strip()
-        
+
         if final_branch != "main":
             print(f"❌ REGRESSION DETECTED: Expected main branch, got {final_branch}")
             return False
-        
+
         print("✅ stop_vibing() correctly returns user to main branch")
         return True
 
@@ -207,31 +211,31 @@ def test_regression_stop_vibing_checkout_bug():
 def test_regression_race_condition_pr_creation():
     """
     REGRESSION TEST: Ensure PR creation waits for remote branch sync.
-    
+
     Bug: Race condition between git push and GitHub API sync caused PR creation
     to fail because remote branch wasn't immediately available.
-    
+
     Fix: Added verification that remote branch exists before creating PR.
     """
     print("🔄 REGRESSION: Testing race condition fix...")
-    
+
     # Check that the race condition fix exists in stop_vibing
     import inspect
-    
+
     source = inspect.getsource(main.stop_vibing)
-    
+
     # Look for race condition fix
     if "RACE CONDITION FIX" not in source and "ls-remote" not in source:
         print("❌ REGRESSION: Race condition fix missing from stop_vibing")
         return False
-    
+
     print("✅ Race condition fix present in stop_vibing")
-    
+
     # The fix should verify remote branch exists before PR creation
     if "ls-remote" not in source or "origin" not in source:
         print("❌ REGRESSION: Remote branch verification missing")
         return False
-    
+
     print("✅ Remote branch verification implemented")
     return True
 
@@ -239,30 +243,31 @@ def test_regression_race_condition_pr_creation():
 def test_regression_uncommitted_changes_accumulation():
     """
     REGRESSION TEST: Ensure auto-commit prevents uncommitted changes accumulation.
-    
+
     Bug: Auto-commit mechanism wasn't working properly, causing uncommitted changes
     to accumulate and block stop_vibing() with "uncommitted changes" errors.
-    
+
     Fix: Improved auto-commit reliability and pre-commit hook handling.
     """
     print("🔄 REGRESSION: Testing uncommitted changes accumulation...")
-    
+
     # Check that auto-commit worker exists and has proper structure
-    assert hasattr(main, 'auto_commit_worker'), "auto_commit_worker function missing"
-    
+    assert hasattr(main, "auto_commit_worker"), "auto_commit_worker function missing"
+
     import inspect
+
     source = inspect.getsource(main.auto_commit_worker)
-    
+
     # Should have proper commit logic
     if "status" not in source or "add" not in source or "commit" not in source:
         print("❌ REGRESSION: Auto-commit worker missing basic git operations")
         return False
-    
+
     # Should handle file watcher events
     if "commit_event" not in source:
         print("❌ REGRESSION: Auto-commit worker not connected to file watcher")
         return False
-    
+
     print("✅ Auto-commit worker has proper structure")
     print("✅ File watcher integration present")
     return True
@@ -273,18 +278,24 @@ if __name__ == "__main__":
     print("🔄 REGRESSION TEST SUITE - Critical Bug Fixes")
     print("=" * 60)
     print()
-    
+
     regression_tests = [
         ("PR Creation Bug", test_regression_pr_creation_bug),
-        ("Auto-commit --no-verify Bypass", test_regression_auto_commit_no_verify_bypass),
+        (
+            "Auto-commit --no-verify Bypass",
+            test_regression_auto_commit_no_verify_bypass,
+        ),
         ("stop_vibing() Checkout Bug", test_regression_stop_vibing_checkout_bug),
         ("Race Condition PR Creation", test_regression_race_condition_pr_creation),
-        ("Uncommitted Changes Accumulation", test_regression_uncommitted_changes_accumulation),
+        (
+            "Uncommitted Changes Accumulation",
+            test_regression_uncommitted_changes_accumulation,
+        ),
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for test_name, test_func in regression_tests:
         print(f"Testing: {test_name}")
         try:
@@ -298,13 +309,13 @@ if __name__ == "__main__":
             failed += 1
             print(f"💥 {test_name}: ERROR - {e}")
         print()
-    
+
     print("=" * 60)
-    print(f"📊 REGRESSION TEST RESULTS")
+    print("📊 REGRESSION TEST RESULTS")
     print(f"✅ Passed: {passed}")
     print(f"❌ Failed: {failed}")
     print("=" * 60)
-    
+
     if failed == 0:
         print("🎉 ALL REGRESSION TESTS PASSED!")
         print("✅ No regressions detected - all critical bugs remain fixed!")

@@ -778,6 +778,12 @@ test = [
     { name = "pytest-mock" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pre-commit" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.8.0" },
@@ -790,6 +796,12 @@ requires-dist = [
     { name = "watchdog", specifier = ">=6.0.0" },
 ]
 provides-extras = ["test", "dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "ruff", specifier = ">=0.11.13" },
+]
 
 [[package]]
 name = "virtualenv"
