@@ -353,10 +353,20 @@ def stop_vibing(commit_message: str) -> str:
         pr_title = lines[0] if lines else commit_message
         pr_body = commit_message  # Use full message as body
 
-        # Try to create PR using GitHub CLI
-        success, output = run_git_command(
-            ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
-        )
+        # Try to create PR using GitHub CLI - CRITICAL: don't use run_git_command for gh!
+        try:
+            result = subprocess.run(
+                ["gh", "pr", "create", "--title", pr_title, "--body", pr_body],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            success = result.returncode == 0
+            output = result.stdout.strip() or result.stderr.strip()
+        except Exception as e:
+            success = False
+            output = str(e)
 
         pr_info = ""
         if success:
