@@ -1,0 +1,2 @@
+Testing MCP reload functionality - this file should be auto-committed.
+Created at: 2025-06-15
