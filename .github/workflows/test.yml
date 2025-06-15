@@ -51,9 +51,19 @@ jobs:
 
     - name: Run mutation testing on main.py
       run: |
-        uv run mutmut run --paths-to-mutate main.py
+        # Update pyproject.toml to test main.py
+        cp pyproject.toml pyproject.toml.bak
+        sed -i 's/paths_to_mutate = \["vibe_status_only.py"\]/paths_to_mutate = ["main.py"]/' pyproject.toml
+        
+        # Run mutmut
+        uv run mutmut run || true
         echo "## Mutation Testing Results for main.py" >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        uv run mutmut results --all true >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        
+        # Restore original pyproject.toml
+        mv pyproject.toml.bak pyproject.toml
       continue-on-error: true  # Don't fail the build if mutation score is low
 
     - name: Clean mutmut cache
@@ -61,17 +71,14 @@ jobs:
         rm -rf .mutmut-cache
       continue-on-error: true
 
-    - name: Run focused mutation testing
+    - name: Run focused mutation testing on vibe_status_only.py
       run: |
-        # Update mutmut config for focused testing
-        echo "[mutmut]" > .mutmut_config
-        echo "paths_to_mutate=vibe_status_only.py" >> .mutmut_config
-        echo "tests_dir=." >> .mutmut_config
-        echo "runner=python -m pytest test_status_only.py -x" >> .mutmut_config
-        
-        uv run mutmut run
+        # Use the default config from pyproject.toml which tests vibe_status_only.py
+        uv run mutmut run || true
         echo "## Mutation Testing Results for vibe_status_only.py" >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        uv run mutmut results --all true >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
       continue-on-error: true
 
   lint:
