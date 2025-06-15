@@ -311,9 +311,6 @@ def stop_vibing(commit_message: str) -> str:
         if not success:
             return f"❌ Error pushing branch: {output}"
         
-        # Try to create PR using GitHub CLI
-        success, output = run_git_command(
-            ["gh", "pr", "create", "--title", commit_message, "--body", f"Vibe session completed.\n\n{commit_message}"],
         # Extract PR title from first line of commit message
         lines = commit_message.strip().split('\n')
         pr_title = lines[0] if lines else commit_message
