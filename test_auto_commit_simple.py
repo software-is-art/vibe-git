@@ -6,11 +6,15 @@ Simple tests for auto-commit mechanism improvements.
 import main
 
 
-def test_ensure_pre_commit_setup_function_exists():
-    """Test that ensure_pre_commit_setup function exists."""
-    assert hasattr(main, "ensure_pre_commit_setup")
-    assert callable(main.ensure_pre_commit_setup)
-    print("✅ ensure_pre_commit_setup function exists")
+def test_auto_commit_worker_simplicity():
+    """Test that auto_commit_worker is simple and focused."""
+    import inspect
+
+    source = inspect.getsource(main.auto_commit_worker)
+    # Should be simple - just commit without complex hook management
+    assert "commit" in source
+    assert "timestamp" in source
+    print("✅ auto_commit_worker is simple and focused")
 
 
 def test_auto_commit_worker_function_exists():
@@ -29,14 +33,15 @@ def test_no_verify_not_in_auto_commit():
     print("✅ auto_commit_worker does not use --no-verify")
 
 
-def test_pre_commit_error_handling():
-    """Test that pre-commit error handling is in place."""
+def test_auto_commit_respects_hooks():
+    """Test that auto-commit respects existing hooks naturally."""
     import inspect
 
     source = inspect.getsource(main.auto_commit_worker)
-    assert "pre-commit` not found" in source, "Should check for pre-commit not found"
-    assert "reset" in source.lower(), "Should reset changes on pre-commit failure"
-    print("✅ Pre-commit error handling is present")
+    # Should NOT use --no-verify (respects hooks naturally)
+    assert "--no-verify" not in source, "Should not bypass hooks with --no-verify"
+    assert "commit" in source, "Should still commit changes"
+    print("✅ Auto-commit respects hooks naturally")
 
 
 def test_file_handler_ignore_functionality():
@@ -58,10 +63,10 @@ if __name__ == "__main__":
     print("=== Simple Auto-Commit Tests ===")
 
     tests = [
-        test_ensure_pre_commit_setup_function_exists,
+        test_auto_commit_worker_simplicity,
         test_auto_commit_worker_function_exists,
         test_no_verify_not_in_auto_commit,
-        test_pre_commit_error_handling,
+        test_auto_commit_respects_hooks,
         test_file_handler_ignore_functionality,
     ]
 

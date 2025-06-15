@@ -95,12 +95,12 @@ def test_auto_commit_worker_pre_commit_success():
             # Verify git commands were called correctly
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
 
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit command, got {len(commit_commands)}"
-            )
-            assert "--no-verify" not in commit_commands[0], (
-                "Should not use --no-verify when pre-commit succeeds"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit command, got {len(commit_commands)}"
+            assert (
+                "--no-verify" not in commit_commands[0]
+            ), "Should not use --no-verify when pre-commit succeeds"
 
             print("✅ Auto-commit worker correctly handles successful pre-commit hooks")
             return True
@@ -147,15 +147,15 @@ def test_auto_commit_worker_pre_commit_fixes_files():
 
             # Should have tried commit twice
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
-            assert len(commit_commands) == 2, (
-                f"Expected 2 commit attempts, got {len(commit_commands)}"
-            )
+            assert (
+                len(commit_commands) == 2
+            ), f"Expected 2 commit attempts, got {len(commit_commands)}"
 
             # Both should be without --no-verify
             for cmd in commit_commands:
-                assert "--no-verify" not in cmd, (
-                    "Should not use --no-verify even when retrying"
-                )
+                assert (
+                    "--no-verify" not in cmd
+                ), "Should not use --no-verify even when retrying"
 
             print("✅ Auto-commit worker correctly handles pre-commit file fixes")
             return True
@@ -201,15 +201,15 @@ def test_auto_commit_worker_pre_commit_missing():
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
             reset_commands = [cmd for cmd in git_calls if cmd[0] == "reset"]
 
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit attempt, got {len(commit_commands)}"
-            )
-            assert len(reset_commands) == 1, (
-                f"Expected 1 reset command, got {len(reset_commands)}"
-            )
-            assert "--no-verify" not in commit_commands[0], (
-                "Should not use --no-verify fallback"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit attempt, got {len(commit_commands)}"
+            assert (
+                len(reset_commands) == 1
+            ), f"Expected 1 reset command, got {len(reset_commands)}"
+            assert (
+                "--no-verify" not in commit_commands[0]
+            ), "Should not use --no-verify fallback"
 
             print("✅ Auto-commit worker correctly handles missing pre-commit")
             return True
@@ -255,81 +255,79 @@ def test_auto_commit_worker_syntax_errors():
             commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
             reset_commands = [cmd for cmd in git_calls if cmd[0] == "reset"]
 
-            assert len(commit_commands) == 1, (
-                f"Expected 1 commit attempt, got {len(commit_commands)}"
-            )
-            assert len(reset_commands) == 1, (
-                f"Expected 1 reset after syntax error, got {len(reset_commands)}"
-            )
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit attempt, got {len(commit_commands)}"
+            assert (
+                len(reset_commands) == 1
+            ), f"Expected 1 reset after syntax error, got {len(reset_commands)}"
 
             print("✅ Auto-commit worker correctly handles syntax errors")
             return True
 
 
-def test_ensure_pre_commit_setup_already_available():
-    """Test ensure_pre_commit_setup when pre-commit is already available."""
-    print("🧪 Testing ensure_pre_commit_setup when pre-commit already available...")
+def test_simplified_auto_commit_approach():
+    """Test that the simplified auto-commit approach works."""
+    print("🧪 Testing simplified auto-commit approach...")
 
     with GitRepoFixture():
-        # Create venv structure
-        venv_dir = Path(".venv/bin")
-        venv_dir.mkdir(parents=True)
-        (venv_dir / "python3").write_text("#!/bin/bash\necho 'python3'")
-        (venv_dir / "python3").chmod(0o755)
+        main.session.is_vibing = True
+        main.session.commit_event = Event()
 
-        # Mock run_command to simulate pre-commit available
-        def mock_run_command(cmd, repo_path):
-            if cmd[1:3] == ["-m", "pre_commit"] and cmd[3] == "--version":
-                return True, "pre-commit 3.5.0"
-            return True, ""
+        # Create a test file
+        Path("test_file.txt").write_text("Test content")
 
-        with patch.object(main, "run_command", side_effect=mock_run_command):
-            success, message = main.ensure_pre_commit_setup()
+        # Mock run_git_command for simple auto-commit
+        git_calls = []
 
-            assert success, f"Expected success, got failure: {message}"
-            assert "Pre-commit is available" in message
+        def mock_run_git_command(cmd, repo_path):
+            git_calls.append(cmd.copy())
 
-            print("✅ ensure_pre_commit_setup correctly detects available pre-commit")
+            if cmd == ["status", "--porcelain"]:
+                return True, "M  test_file.txt"
+            elif cmd == ["add", "."]:
+                return True, ""
+            elif cmd[0] == "commit" and "-m" in cmd:
+                return True, "Created commit abc123"
+            else:
+                return True, ""
+
+        with patch.object(main, "run_git_command", side_effect=mock_run_git_command):
+            main.session.commit_event.set()
+
+            try:
+                main.auto_commit_worker()
+            except Exception:
+                pass
+
+            # Verify simple commit was attempted
+            commit_commands = [cmd for cmd in git_calls if cmd[0] == "commit"]
+            assert (
+                len(commit_commands) == 1
+            ), f"Expected 1 commit command, got {len(commit_commands)}"
+
+            # Should not have complex pre-commit handling
+            assert "--no-verify" not in commit_commands[0], "Should not bypass hooks"
+
+            print("✅ Simplified auto-commit approach works correctly")
             return True
 
 
-def test_ensure_pre_commit_setup_installation():
-    """Test ensure_pre_commit_setup when pre-commit needs to be installed."""
-    print("🧪 Testing ensure_pre_commit_setup installation...")
+def test_no_complex_hook_management():
+    """Test that we don't have complex hook management."""
+    print("🧪 Testing absence of complex hook management...")
 
-    with GitRepoFixture():
-        # Create venv structure
-        venv_dir = Path(".venv/bin")
-        venv_dir.mkdir(parents=True)
-        (venv_dir / "python3").write_text("#!/bin/bash\necho 'python3'")
-        (venv_dir / "python3").chmod(0o755)
+    # Verify removed functions don't exist
+    assert not hasattr(
+        main, "ensure_pre_commit_setup"
+    ), "ensure_pre_commit_setup should be removed"
+    assert not hasattr(
+        main, "check_code_quality"
+    ), "check_code_quality should be removed"
+    assert not hasattr(main, "fix_code_quality"), "fix_code_quality should be removed"
 
-        # Mock run_command to simulate installation process
-        call_count = 0
-
-        def mock_run_command(cmd, repo_path):
-            nonlocal call_count
-            call_count += 1
-
-            if cmd[1:3] == ["-m", "pre_commit"] and cmd[3] == "--version":
-                # First call: not available
-                return False, "No module named pre_commit"
-            elif cmd[1:3] == ["-m", "pip"] and "install" in cmd:
-                # Install pre-commit
-                return True, "Successfully installed pre-commit"
-            elif cmd[1:3] == ["-m", "pre_commit"] and cmd[3] == "install":
-                # Install hooks
-                return True, "pre-commit installed at .git/hooks/pre-commit"
-            return True, ""
-
-        with patch.object(main, "run_command", side_effect=mock_run_command):
-            success, message = main.ensure_pre_commit_setup()
-
-            assert success, f"Expected success, got failure: {message}"
-            assert "installed and configured successfully" in message
-
-            print("✅ ensure_pre_commit_setup correctly installs pre-commit")
-            return True
+    print("✅ Complex hook management has been removed")
+    return True
 
 
 def test_file_handler_ignore_patterns():
@@ -354,9 +352,9 @@ def test_file_handler_ignore_patterns():
 
         for path, should_ignore in test_cases:
             result = handler.should_ignore_path(path)
-            assert result == should_ignore, (
-                f"Path {path}: expected ignore={should_ignore}, got {result}"
-            )
+            assert (
+                result == should_ignore
+            ), f"Path {path}: expected ignore={should_ignore}, got {result}"
 
         print("✅ VibeFileHandler correctly handles ignore patterns")
         return True
@@ -370,8 +368,8 @@ if __name__ == "__main__":
         test_auto_commit_worker_pre_commit_fixes_files,
         test_auto_commit_worker_pre_commit_missing,
         test_auto_commit_worker_syntax_errors,
-        test_ensure_pre_commit_setup_already_available,
-        test_ensure_pre_commit_setup_installation,
+        test_simplified_auto_commit_approach,
+        test_no_complex_hook_management,
         test_file_handler_ignore_patterns,
     ]
 
