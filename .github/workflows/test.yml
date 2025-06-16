@@ -115,30 +115,29 @@ jobs:
         git config --global user.email "actions@github.com"
         git config --global init.defaultBranch main
 
-    - name: Run mutation testing on main.py
-      run: |
-        uv run mutmut run --paths-to-mutate main.py
-        echo "## Mutation Testing Results for main.py" >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true  # Don't fail the build if mutation score is low
+    - name: Cache mutation testing
+      uses: actions/cache@v4
+      with:
+        path: mutants.sqlite
+        key: cosmic-ray-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'pyproject.toml') }}
+        restore-keys: |
+          cosmic-ray-
 
-    - name: Clean mutmut cache
+    - name: Run mutation testing with cosmic-ray
       run: |
-        rm -rf .mutmut-cache
-      continue-on-error: true
-
-    - name: Run focused mutation testing
-      run: |
-        # Update mutmut config for focused testing
-        echo "[mutmut]" > .mutmut_config
-        echo "paths_to_mutate=vibe_status_only.py" >> .mutmut_config
-        echo "tests_dir=." >> .mutmut_config
-        echo "runner=python -m pytest tests/test_status_only.py -x" >> .mutmut_config
+        # Initialize cosmic-ray database if it doesn't exist
+        if [ ! -f mutants.sqlite ]; then
+          uv run cosmic-ray init mutants.toml mutants.sqlite
+        fi
         
-        uv run mutmut run
-        echo "## Mutation Testing Results for vibe_status_only.py" >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true
+        # Run cosmic-ray mutation testing
+        uv run cosmic-ray exec mutants.toml mutants.sqlite || true
+        
+        echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        uv run cosmic-ray report mutants.sqlite >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true  # Don't fail the build if mutation score is low
 
   lint:
     runs-on: ubuntu-latest
