@@ -135,7 +135,17 @@ jobs:
         
         echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        uv run cosmic-ray report mutants.sqlite >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
+        # Count total mutations and results
+        TOTAL=$(uv run cosmic-ray dump mutants.sqlite | wc -l || echo "0")
+        KILLED=$(uv run cosmic-ray dump mutants.sqlite | grep -c '"outcome": "killed"' || echo "0") 
+        SURVIVED=$(uv run cosmic-ray dump mutants.sqlite | grep -c '"outcome": "survived"' || echo "0")
+        echo "Total mutations: $TOTAL" >> $GITHUB_STEP_SUMMARY
+        echo "Killed: $KILLED" >> $GITHUB_STEP_SUMMARY  
+        echo "Survived: $SURVIVED" >> $GITHUB_STEP_SUMMARY
+        if [ "$TOTAL" -gt 0 ]; then
+          SCORE=$(python3 -c "print(f'{$KILLED * 100 / $TOTAL:.1f}')" 2>/dev/null || echo "0")
+          echo "Mutation score: ${SCORE}%" >> $GITHUB_STEP_SUMMARY
+        fi
         echo '```' >> $GITHUB_STEP_SUMMARY
       continue-on-error: true  # Don't fail the build if mutation score is low
 
