@@ -131,7 +131,7 @@ jobs:
         fi
         
         # Run cosmic-ray mutation testing
-        uv run cosmic-ray exec mutants.toml mutants.sqlite || true
+        uv run cosmic-ray exec mutants.toml mutants.sqlite
         
         echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
