@@ -120,8 +120,6 @@ jobs:
       with:
         path: mutants.sqlite
         key: cosmic-ray-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'pyproject.toml') }}
-        restore-keys: |
-          cosmic-ray-
 
     - name: Run mutation testing with cosmic-ray
       run: |
