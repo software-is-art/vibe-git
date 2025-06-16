@@ -82,7 +82,7 @@ jobs:
 
     - name: Run integration tests
       run: |
-        uv run pytest test_status_only.py -v --tb=short
+        uv run pytest tests/test_status_only.py -v --tb=short
 
   mutation-tests:
     runs-on: ubuntu-latest
@@ -133,7 +133,7 @@ jobs:
         echo "[mutmut]" > .mutmut_config
         echo "paths_to_mutate=vibe_status_only.py" >> .mutmut_config
         echo "tests_dir=." >> .mutmut_config
-        echo "runner=python -m pytest test_status_only.py -x" >> .mutmut_config
+        echo "runner=python -m pytest tests/test_status_only.py -x" >> .mutmut_config
         
         uv run mutmut run
         echo "## Mutation Testing Results for vibe_status_only.py" >> $GITHUB_STEP_SUMMARY
