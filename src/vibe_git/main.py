@@ -165,7 +165,7 @@ def _start_vibing_impl() -> str:
         if success and current_branch.startswith("vibe-"):
             # We're already on a vibe branch - reuse it instead of creating a new one
             session.branch_name = current_branch
-        if success and current_branch.strip().startswith("vibe-"):
+        if not success and current_branch.strip().startswith("vibe-"):
             # We're already on a vibe branch - reuse it instead of creating a new one
             session.branch_name = current_branch.strip()
             session.is_vibing = True
