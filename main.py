@@ -315,7 +315,15 @@ def stop_vibing(commit_message: str) -> str:
             # Reset to base commit and create single commit
             success, _ = run_git_command(["reset", "--soft", base_commit], repo_path)
             if success:
+                # Commit with hooks running (may modify files)
                 run_git_command(["commit", "-m", commit_message], repo_path)
+                
+                # Check if hooks made any changes and amend if needed
+                success, output = run_git_command(["status", "--porcelain"], repo_path)
+                if success and output.strip():
+                    # Hooks modified files, add them and amend
+                    run_git_command(["add", "."], repo_path)
+                    run_git_command(["commit", "--amend", "--no-edit"], repo_path)
 
         # Checkout main and pull latest
         run_git_command(["checkout", "main"], repo_path)
