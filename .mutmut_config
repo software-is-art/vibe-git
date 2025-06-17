@@ -1,4 +1,0 @@
-[mutmut]
-paths_to_mutate=vibe_status_only.py
-tests_dir=.
-runner=python -m pytest test_status_only.py -x

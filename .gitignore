@@ -42,6 +42,7 @@ venv.bak/
 
 # Mutation testing
 mutants/
+mutants.sqlite
 .mutmut-cache
 
 # Testing

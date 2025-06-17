@@ -14,24 +14,21 @@ test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "pytest-mock>=3.12.0",
-    "mutmut>=2.4.0",
+    "cosmic-ray>=8.3.0",
 ]
 dev = [
     "ruff>=0.8.0",
     "pre-commit>=3.5.0",
 ]
 
-[tool.pytest.ini_options]
-testpaths = ["."]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.mutmut]
-paths_to_mutate = ["vibe_status_only.py"]
-tests_dir = "."
-runner = "python -m pytest test_status_only.py -x"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
 
 [tool.ruff]
 target-version = "py313"
@@ -60,5 +57,13 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
+[dependency-groups]
+dev = [
+    "cosmic-ray>=8.3.0",
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.0",
+    "ruff>=0.11.13",
+]
+
 [project.scripts]
-vibe-git-mcp = "main:main"
+vibe-git-mcp = "vibe_git.main:main"
