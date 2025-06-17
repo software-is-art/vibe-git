@@ -11,7 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from vibe_status_only import VibeSession, find_git_repo, run_git_command, vibe_status
+from vibe_git.vibe_status_only import (
+    VibeSession,
+    find_git_repo,
+    run_git_command,
+    vibe_status,
+)
 
 
 class GitRepoFixture:
@@ -174,8 +179,10 @@ def test_vibe_status_uses_found_repo_path():
         import unittest.mock
 
         with (
-            unittest.mock.patch("vibe_status_only.find_git_repo") as mock_find,
-            unittest.mock.patch("vibe_status_only.run_git_command") as mock_run,
+            unittest.mock.patch("vibe_git.vibe_status_only.find_git_repo") as mock_find,
+            unittest.mock.patch(
+                "vibe_git.vibe_status_only.run_git_command"
+            ) as mock_run,
         ):
             mock_find.return_value = Path("/fake/repo")
             mock_run.return_value = (True, "main")
@@ -218,7 +225,9 @@ def test_vibe_status_git_command_failure():
         # Mock run_git_command to return failure
         import unittest.mock
 
-        with unittest.mock.patch("vibe_status_only.run_git_command") as mock_run:
+        with unittest.mock.patch(
+            "vibe_git.vibe_status_only.run_git_command"
+        ) as mock_run:
             mock_run.return_value = (False, "error output")
 
             result = vibe_status(session)
@@ -244,7 +253,7 @@ def test_find_git_repo_exact_path_check():
     import unittest.mock
 
     # Mock the entire find_git_repo function to test the mutation
-    with unittest.mock.patch("vibe_status_only.Path") as MockPath:
+    with unittest.mock.patch("vibe_git.vibe_status_only.Path") as MockPath:
         mock_cwd = unittest.mock.MagicMock()
         mock_parent = unittest.mock.MagicMock()
 
@@ -318,7 +327,9 @@ def test_run_git_command_cwd_parameter_usage():
         import unittest.mock
 
         # Mock find_git_repo to return a different path
-        with unittest.mock.patch("vibe_status_only.find_git_repo") as mock_find:
+        with unittest.mock.patch(
+            "vibe_git.vibe_status_only.find_git_repo"
+        ) as mock_find:
             mock_find.return_value = Path("/fake/fallback/path")
 
             # Call with explicit cwd - should NOT call find_git_repo
@@ -401,13 +412,17 @@ def test_vibe_status_output_processing():
         import unittest.mock
 
         # Test stdout.strip() path
-        with unittest.mock.patch("vibe_status_only.run_git_command") as mock_run:
+        with unittest.mock.patch(
+            "vibe_git.vibe_status_only.run_git_command"
+        ) as mock_run:
             mock_run.return_value = (True, "  main  ")  # stdout with whitespace
             result = vibe_status(session)
             assert "🔵 IDLE" in result
 
         # Test the "or" logic in stdout.strip() or stderr.strip()
-        with unittest.mock.patch("vibe_status_only.run_git_command") as mock_run:
+        with unittest.mock.patch(
+            "vibe_git.vibe_status_only.run_git_command"
+        ) as mock_run:
             mock_run.return_value = (True, "")  # empty stdout, should use stderr
             result = vibe_status(session)
             assert "🔵 IDLE" in result
