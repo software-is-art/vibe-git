@@ -115,31 +115,35 @@ jobs:
         git config --global user.email "actions@github.com"
         git config --global init.defaultBranch main
 
-    - name: Cache mutation testing
-      uses: actions/cache@v4
-      with:
-        path: mutants.sqlite
-        key: cosmic-ray-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'pyproject.toml') }}
-
     - name: Run mutation testing with cosmic-ray
       run: |
-        # Initialize cosmic-ray database if it doesn't exist
-        if [ ! -f mutants.sqlite ]; then
-          uv run cosmic-ray init mutants.toml mutants.sqlite
-        fi
+        # Always start fresh to avoid cache corruption issues
+        rm -f mutants.sqlite
+        uv run cosmic-ray init mutants.toml mutants.sqlite
         
         # Run cosmic-ray mutation testing
         uv run cosmic-ray exec mutants.toml mutants.sqlite
         
+        # Validate database completeness
+        DUMP_OUTPUT=$(uv run cosmic-ray dump mutants.sqlite)
+        PENDING_COUNT=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": null' || echo "0")
+        if [ "$PENDING_COUNT" -gt 0 ]; then
+          echo "Warning: $PENDING_COUNT mutations were not executed. Re-running cosmic-ray exec..."
+          uv run cosmic-ray exec mutants.toml mutants.sqlite
+        fi
+        
         echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         # Count total mutations and results
-        TOTAL=$(uv run cosmic-ray dump mutants.sqlite | wc -l || echo "0")
-        KILLED=$(uv run cosmic-ray dump mutants.sqlite | grep -c '"outcome": "killed"' || echo "0") 
-        SURVIVED=$(uv run cosmic-ray dump mutants.sqlite | grep -c '"outcome": "survived"' || echo "0")
+        DUMP_OUTPUT=$(uv run cosmic-ray dump mutants.sqlite)
+        TOTAL=$(echo "$DUMP_OUTPUT" | grep -c '"job_id"' || echo "0")
+        KILLED=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": "killed"' || echo "0") 
+        SURVIVED=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": "survived"' || echo "0")
+        PENDING=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": null' || echo "0")
         echo "Total mutations: $TOTAL" >> $GITHUB_STEP_SUMMARY
         echo "Killed: $KILLED" >> $GITHUB_STEP_SUMMARY  
         echo "Survived: $SURVIVED" >> $GITHUB_STEP_SUMMARY
+        echo "Pending: $PENDING" >> $GITHUB_STEP_SUMMARY
         if [ "$TOTAL" -gt 0 ]; then
           SCORE=$(python3 -c "print(f'{$KILLED * 100 / $TOTAL:.1f}')" 2>/dev/null || echo "0")
           echo "Mutation score: ${SCORE}%" >> $GITHUB_STEP_SUMMARY

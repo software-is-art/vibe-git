@@ -42,8 +42,9 @@ venv.bak/
 
 # Mutation testing
 mutants/
-mutants.sqlite
 .mutmut-cache
+mutants.sqlite
+*.sqlite
 
 # Testing
 .pytest_cache/
