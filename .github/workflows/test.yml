@@ -40,7 +40,7 @@ jobs:
 
     - name: Run unit tests
       run: |
-        uv run pytest test_status_only.py -v --tb=short
+        uv run pytest tests/ -v --tb=short
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -82,7 +82,7 @@ jobs:
 
     - name: Run integration tests
       run: |
-        uv run pytest test_status_only.py -v --tb=short
+        uv run pytest tests/test_status_only.py -v --tb=short
 
   mutation-tests:
     runs-on: ubuntu-latest
@@ -181,4 +181,4 @@ jobs:
 
     - name: Check Python syntax
       run: |
-        uv run python -m py_compile *.py
+        uv run python -m py_compile src/vibe_git/*.py tests/*.py
