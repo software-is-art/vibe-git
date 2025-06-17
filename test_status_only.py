@@ -235,7 +235,7 @@ def test_run_git_command_exception_handling():
         mock_run.side_effect = Exception("Command failed")
 
         success, output = run_git_command(["status"], Path("/fake/path"))
-        assert success is not False
+        assert success is False
         assert "Command failed" in output
 
 
