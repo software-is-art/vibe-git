@@ -52,11 +52,11 @@ def find_git_repo() -> Path:
     raise RuntimeError("Not in a git repository")
 
 
-def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
-    """Run a git command and return (success, output)"""
+def run_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run any command and return (success, output)"""
     try:
         result = subprocess.run(
-            ["git"] + args,
+            args,
             cwd=cwd or find_git_repo(),
             capture_output=True,
             text=True,
@@ -67,6 +67,11 @@ def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str
         return False, str(e)
 
 
+def run_git_command(args: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run a git command and return (success, output)"""
+    return run_command(["git"] + args, cwd)
+
+
 class VibeFileHandler(FileSystemEventHandler):
     """Handles file system events for auto-committing"""
 
@@ -75,35 +80,22 @@ class VibeFileHandler(FileSystemEventHandler):
         self.repo_path = repo_path
         self.commit_event = commit_event
         self.last_commit_time = 0
-        self.min_commit_interval = 1  # Minimum 1 second between commits
+        self.min_commit_interval = 0  # No rate limiting - commit immediately
 
     def should_ignore_path(self, path: str) -> bool:
-        """Check if path should be ignored based on git and common patterns"""
+        """Check if path should be ignored based on git's ignore rules"""
+        # Always ignore .git directory itself
         path_obj = Path(path)
+        if ".git" in path_obj.parts:
+            return True
 
-        # Ignore git directory and common temp files
-        ignore_patterns = [
-            ".git",
-            "__pycache__",
-            ".pytest_cache",
-            ".venv",
-            "node_modules",
-            ".DS_Store",
-            "*.pyc",
-            "*.pyo",
-            "*.swp",
-            "*.tmp",
-            ".coverage",
-        ]
-
-        for pattern in ignore_patterns:
-            if pattern.startswith("*"):
-                if path_obj.name.endswith(pattern[1:]):
-                    return True
-            elif pattern in path_obj.parts:
-                return True
-
-        return False
+        # Use git check-ignore to determine if file should be ignored
+        relative_path = path_obj.relative_to(self.repo_path)
+        success, _ = run_git_command(
+            ["check-ignore", str(relative_path)], self.repo_path
+        )
+        # git check-ignore returns 0 if the file is ignored
+        return success
 
     def on_any_event(self, event):
         """Handle any file system event"""
@@ -134,17 +126,21 @@ def auto_commit_worker():
 
                 # Check for actual changes before committing
                 success, output = run_git_command(["status", "--porcelain"], repo_path)
+
                 if success and output.strip():
                     # Add all changes
                     run_git_command(["add", "."], repo_path)
 
-                    # Commit with timestamp
+                    # Commit with timestamp, bypassing hooks during vibe session
+                    # This prevents formatting changes from creating noise and consuming context
                     timestamp = int(time.time())
                     commit_msg = f"Auto-commit {timestamp}"
-                    run_git_command(["commit", "-m", commit_msg], repo_path)
+                    run_git_command(
+                        ["commit", "-m", commit_msg, "--no-verify"], repo_path
+                    )
 
-        except Exception:
-            # Continue on any errors
+        except Exception as e:
+            print(f"Auto-commit worker error: {e}", file=sys.stderr)
             time.sleep(0.1)
 
 
@@ -169,7 +165,7 @@ def _start_vibing_impl() -> str:
         if success and current_branch.startswith("vibe-"):
             # We're already on a vibe branch - reuse it instead of creating a new one
             session.branch_name = current_branch
-        if success and current_branch.strip().startswith("vibe-"):
+        if not success and current_branch.strip().startswith("vibe-"):
             # We're already on a vibe branch - reuse it instead of creating a new one
             session.branch_name = current_branch.strip()
             session.is_vibing = True
@@ -286,13 +282,10 @@ def stop_vibing(commit_message: str) -> str:
         repo_path = find_git_repo()
         branch_name = session.branch_name
         # commit_message is now passed directly as parameter
+        pr_warning = ""  # Initialize warning message
 
-        # Stop the file watcher
-        if session.observer:
-            session.observer.stop()
-            session.observer.join(timeout=2)
-        if session.commit_event:
-            session.commit_event.set()  # Wake up commit worker to exit
+        # NOTE: We keep the file watcher running during stop_vibing
+        # This ensures any hook-induced changes get auto-committed before we finish
 
         # Squash commits using interactive rebase
         # First, find the commit where we branched from main
@@ -313,26 +306,72 @@ def stop_vibing(commit_message: str) -> str:
         )
         if success and int(output.strip()) > 1:
             # Reset to base commit and create single commit
-            success, _ = run_git_command(["reset", "--soft", base_commit], repo_path)
-            if success:
-                run_git_command(["commit", "-m", commit_message], repo_path)
+            reset_success, reset_output = run_git_command(
+                ["reset", "--soft", base_commit], repo_path
+            )
+            if reset_success:
+                # Create squash commit bypassing hooks initially (avoid hook failures on intermediate state)
+                squash_success, squash_output = run_git_command(
+                    ["commit", "-m", commit_message, "--no-verify"], repo_path
+                )
+                if not squash_success:
+                    return f"❌ Error creating squash commit: {squash_output}"
+
+                # Now amend to let hooks run and potentially fix formatting
+                amend_success, amend_output = run_git_command(
+                    ["commit", "--amend", "--no-edit"], repo_path
+                )
+                if not amend_success:
+                    return f"❌ Error running hooks on squash commit: {amend_output}"
+
+                # Give file watcher a moment to detect and commit any hook-induced changes
+                time.sleep(2)
+            else:
+                return f"❌ Error resetting to base commit: {reset_output}"
 
         # Checkout main and pull latest
-        run_git_command(["checkout", "main"], repo_path)
-        run_git_command(["pull", "origin", "main"], repo_path)
+        checkout_success, checkout_output = run_git_command(
+            ["checkout", "main"], repo_path
+        )
+        if not checkout_success:
+            return f"❌ Error checking out main: {checkout_output}"
+
+        pull_success, pull_output = run_git_command(
+            ["pull", "origin", "main"], repo_path
+        )
+        if not pull_success:
+            return f"❌ Error pulling latest main: {pull_output}"
 
         # Rebase our branch
-        run_git_command(["checkout", branch_name], repo_path)
-        success, output = run_git_command(["rebase", "main"], repo_path)
-        if not success:
-            return f"❌ Error rebasing: {output}"
-
-        # Push branch
-        success, output = run_git_command(
-            ["push", "-u", "origin", branch_name], repo_path
+        vibe_checkout_success, vibe_checkout_output = run_git_command(
+            ["checkout", branch_name], repo_path
         )
-        if not success:
-            return f"❌ Error pushing branch: {output}"
+        if not vibe_checkout_success:
+            return f"❌ Error checking out vibe branch: {vibe_checkout_output}"
+
+        rebase_success, rebase_output = run_git_command(["rebase", "main"], repo_path)
+        if not rebase_success:
+            # Try to abort the rebase if it failed
+            run_git_command(["rebase", "--abort"], repo_path)
+
+            # If rebase fails, try force pushing instead
+            # This can happen when the remote has diverged (e.g., from PR edits)
+            force_push_success, force_push_output = run_git_command(
+                ["push", "-f", "-u", "origin", branch_name], repo_path
+            )
+            if force_push_success:
+                pr_warning = "\n⚠️ Note: Had to force push due to rebase conflicts. Review the PR carefully."
+            else:
+                return f"❌ Error: Rebase failed and couldn't force push: {rebase_output}\nPush error: {force_push_output}"
+        else:
+            # Always force push after successful rebase since we've rewritten history
+            force_push_success, force_push_output = run_git_command(
+                ["push", "-f", "-u", "origin", branch_name], repo_path
+            )
+            if force_push_success:
+                pr_warning = ""
+            else:
+                return f"❌ Error force pushing rebased branch: {force_push_output}"
 
         # Extract PR title from first line of commit message
         lines = commit_message.strip().split("\n")
@@ -340,7 +379,7 @@ def stop_vibing(commit_message: str) -> str:
         pr_body = commit_message  # Use full message as body
 
         # Try to create PR using GitHub CLI
-        success, output = run_git_command(
+        success, output = run_command(
             ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], repo_path
         )
 
@@ -348,13 +387,27 @@ def stop_vibing(commit_message: str) -> str:
         if success:
             pr_info = f"\n📋 Created PR: {output}"
 
+        # CRITICAL FIX: Switch back to main branch before finishing
+        final_checkout_success, final_checkout_output = run_git_command(
+            ["checkout", "main"], repo_path
+        )
+        if not final_checkout_success:
+            return f"❌ Error switching back to main: {final_checkout_output}"
+
+        # NOW we can stop the file watcher - all git operations are complete
+        if session.observer:
+            session.observer.stop()
+            session.observer.join(timeout=2)
+        if session.commit_event:
+            session.commit_event.set()  # Wake up commit worker to exit
+
         # Reset session state
         session.is_vibing = False
         session.branch_name = None
         session.observer = None
         session.commit_event = None
 
-        return f"🏁 Stopped vibing! Squashed commits into: '{commit_message}', rebased on main, and pushed to origin.{pr_info}"
+        return f"🏁 Stopped vibing! Squashed commits into: '{commit_message}', rebased on main, and pushed to origin.{pr_info}{pr_warning}"
 
     except Exception as e:
         # Reset session state on error
@@ -500,7 +553,9 @@ def vibe_from_here() -> str:
 
 @mcp.tool()
 def vibe_status() -> str:
-    """📊 Check the current vibe session status - whether you're currently vibing or idle. Use this to understand the current state."""
+    """📊 Check the current vibe session status - whether you're currently vibing or idle. Use this to understand the current state.
+
+    Test change to verify auto-commit with new .gitignore filtering."""
     try:
         repo_path = find_git_repo()
 

@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,9 +38,40 @@ jobs:
         git config --global user.email "actions@github.com"
         git config --global init.defaultBranch main
 
-    - name: Run pytest
+    - name: Run unit tests
       run: |
-        uv run pytest -v --tb=short
+        uv run pytest tests/ -v --tb=short
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper git testing
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+
+    - name: Configure git for testing
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git config --global init.defaultBranch main
 
     - name: Install GitHub CLI (for PR creation tests)
       run: |
@@ -49,30 +80,72 @@ jobs:
         sudo apt update
         sudo apt install gh
 
-    - name: Run mutation testing on main.py
+    - name: Run integration tests
       run: |
-        uv run mutmut run --paths-to-mutate main.py
-        echo "## Mutation Testing Results for main.py" >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true  # Don't fail the build if mutation score is low
+        uv run pytest tests/test_status_only.py -v --tb=short
 
-    - name: Clean mutmut cache
-      run: |
-        rm -rf .mutmut-cache
-      continue-on-error: true
+  mutation-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
 
-    - name: Run focused mutation testing
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper git testing
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install dependencies
       run: |
-        # Update mutmut config for focused testing
-        echo "[mutmut]" > .mutmut_config
-        echo "paths_to_mutate=vibe_status_only.py" >> .mutmut_config
-        echo "tests_dir=." >> .mutmut_config
-        echo "runner=python -m pytest test_status_only.py -x" >> .mutmut_config
+        uv sync --extra test
+
+    - name: Configure git for testing
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git config --global init.defaultBranch main
+
+    - name: Cache mutation testing
+      uses: actions/cache@v4
+      with:
+        path: mutants.sqlite
+        key: cosmic-ray-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'pyproject.toml') }}
+
+    - name: Run mutation testing with cosmic-ray
+      run: |
+        # Initialize cosmic-ray database if it doesn't exist
+        if [ ! -f mutants.sqlite ]; then
+          uv run cosmic-ray init mutants.toml mutants.sqlite
+        fi
         
-        uv run mutmut run
-        echo "## Mutation Testing Results for vibe_status_only.py" >> $GITHUB_STEP_SUMMARY
-        uv run mutmut results >> $GITHUB_STEP_SUMMARY || echo "No results to show" >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true
+        # Run cosmic-ray mutation testing
+        uv run cosmic-ray exec mutants.toml mutants.sqlite
+        
+        echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        # Count total mutations and results
+        TOTAL=$(uv run cosmic-ray dump mutants.sqlite | wc -l || echo "0")
+        KILLED=$(uv run cosmic-ray dump mutants.sqlite | grep -c '"outcome": "killed"' || echo "0") 
+        SURVIVED=$(uv run cosmic-ray dump mutants.sqlite | grep -c '"outcome": "survived"' || echo "0")
+        echo "Total mutations: $TOTAL" >> $GITHUB_STEP_SUMMARY
+        echo "Killed: $KILLED" >> $GITHUB_STEP_SUMMARY  
+        echo "Survived: $SURVIVED" >> $GITHUB_STEP_SUMMARY
+        if [ "$TOTAL" -gt 0 ]; then
+          SCORE=$(python3 -c "print(f'{$KILLED * 100 / $TOTAL:.1f}')" 2>/dev/null || echo "0")
+          echo "Mutation score: ${SCORE}%" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo '```' >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true  # Don't fail the build if mutation score is low
 
   lint:
     runs-on: ubuntu-latest
@@ -104,4 +177,4 @@ jobs:
 
     - name: Check Python syntax
       run: |
-        uv run python -m py_compile main.py vibe_status_only.py test_status_only.py
+        uv run python -m py_compile src/vibe_git/*.py tests/*.py
