@@ -17,7 +17,6 @@ from pathlib import Path
 from threading import Event, Thread
 from typing import Literal, NewType, TypeAlias
 
-from beartype import beartype
 from beartype.typing import Annotated
 from beartype.vale import Is
 from fastmcp import FastMCP
@@ -112,7 +111,6 @@ class VibeSession:
 
     state: SessionState = IdleState()
 
-    @beartype
     def transition_to(self, new_state: SessionState) -> None:
         """Type-safe state transition"""
         self.state = new_state
@@ -131,7 +129,6 @@ session = VibeSession()
 mcp = FastMCP("vibe-git")
 
 
-@beartype
 def find_git_repo() -> GitPath:
     """Find the git repository root with type safety"""
     current = Path.cwd()
@@ -142,7 +139,6 @@ def find_git_repo() -> GitPath:
     raise RuntimeError("Not in a git repository")
 
 
-@beartype
 def check_orphaned_sessions() -> str | None:
     """Check for orphaned vibe sessions on startup"""
     try:
@@ -182,7 +178,6 @@ if startup_message:
 
 
 @dispatch
-@beartype
 def run_command(args: list[str], cwd: Path | None = None) -> CommandResult:
     """Run any command with type-safe return"""
     try:
@@ -199,19 +194,16 @@ def run_command(args: list[str], cwd: Path | None = None) -> CommandResult:
 
 
 @dispatch
-@beartype
 def run_command(command: str, cwd: Path | None = None) -> CommandResult:  # noqa: F811
     """Overload for single string commands"""
     return run_command(command.split(), cwd)
 
 
-@beartype
 def run_git_command(args: list[str], cwd: Path | None = None) -> CommandResult:
     """Run a git command with type safety"""
     return run_command(["git"] + args, cwd)
 
 
-@beartype
 def get_current_branch(repo_path: GitPath) -> BranchName | None:
     """Get current branch name with type safety"""
     success, output = run_git_command(["branch", "--show-current"], repo_path)
@@ -223,7 +215,6 @@ def get_current_branch(repo_path: GitPath) -> BranchName | None:
     return None
 
 
-@beartype
 def has_uncommitted_changes(repo_path: GitPath) -> tuple[bool, str]:
     """Check for uncommitted changes with details"""
     success, output = run_git_command(["status", "--porcelain"], repo_path)
@@ -231,13 +222,11 @@ def has_uncommitted_changes(repo_path: GitPath) -> tuple[bool, str]:
     return has_changes, output.strip() if has_changes else ""
 
 
-@beartype
 def is_vibe_branch(branch: str) -> bool:
     """Check if a branch name is a vibe branch"""
     return branch.startswith("vibe-")
 
 
-@beartype
 def generate_timestamp() -> CommitTimestamp:
     """Generate commit timestamp with validation"""
     return CommitTimestamp(int(time.time()))
@@ -257,7 +246,6 @@ def atomic_state_transition(session: VibeSession):
 class VibeFileHandler(FileSystemEventHandler):
     """Handles file system events for auto-committing"""
 
-    @beartype
     def __init__(self, repo_path: GitPath, commit_event: Event):
         super().__init__()
         self.repo_path = repo_path
@@ -265,7 +253,6 @@ class VibeFileHandler(FileSystemEventHandler):
         self.last_commit_time = 0.0
         self.min_commit_interval = 0.0
 
-    @beartype
     def should_ignore_path(self, path: str | Path) -> bool:
         """Check if path should be ignored based on git's ignore rules"""
         return self._check_ignore(path)
@@ -314,7 +301,6 @@ class VibeFileHandler(FileSystemEventHandler):
         self.commit_event.set()
 
 
-@beartype
 def auto_commit_worker() -> None:
     """Worker thread that commits changes when signaled"""
     try:
@@ -348,7 +334,6 @@ def auto_commit_worker() -> None:
             time.sleep(0.1)
 
 
-@beartype
 def ensure_on_main_branch(repo_path: GitPath) -> Literal["main", "master"] | None:
     """Ensure we're on main/master branch"""
     success, _ = run_git_command(["checkout", "main"], repo_path)
@@ -362,7 +347,6 @@ def ensure_on_main_branch(repo_path: GitPath) -> Literal["main", "master"] | Non
     return None
 
 
-@beartype
 def start_file_watcher(repo_path: GitPath, branch_name: BranchName) -> VibingState:
     """Start file watching for auto-commit"""
     commit_event = Event()
@@ -382,7 +366,6 @@ def start_file_watcher(repo_path: GitPath, branch_name: BranchName) -> VibingSta
 
 # Dispatch implementations for different repository states
 @dispatch
-@beartype
 def start_vibing_from_state(state: IdleState, repo_path: GitPath) -> VibeStartResult:
     """Start vibing from idle state"""
     # Check for saved session first
@@ -503,7 +486,6 @@ def start_vibing_from_state(state: IdleState, repo_path: GitPath) -> VibeStartRe
 
 
 @dispatch
-@beartype
 def start_vibing_from_state(state: VibingState, repo_path: GitPath) -> VibeStartResult:  # noqa: F811
     """Already vibing - return status"""
     return VibeStartResult(
@@ -514,7 +496,6 @@ def start_vibing_from_state(state: VibingState, repo_path: GitPath) -> VibeStart
 
 
 @dispatch
-@beartype
 def start_vibing_from_state(state: DirtyState, repo_path: GitPath) -> VibeStartResult:  # noqa: F811
     """Can't start from dirty state - return instructions"""
     return VibeStartResult(
@@ -530,16 +511,35 @@ def start_vibing_from_state(state: DirtyState, repo_path: GitPath) -> VibeStartR
     )
 
 
-@beartype
+@dispatch
 def parse_commit_message(message: str) -> tuple[PRTitle, PRBody]:
-    """Parse commit message into title and body"""
+    """Parse commit message into title and body - string version"""
     lines = message.strip().split("\n")
     title = PRTitle(lines[0] if lines else message)
     body = PRBody(message)
     return title, body
 
 
-@beartype
+@dispatch
+def parse_commit_message(message: NonEmptyString) -> tuple[PRTitle, PRBody]:  # noqa: F811
+    """Parse commit message with validated non-empty string"""
+    # We know message is non-empty due to type validation
+    lines = message.strip().split("\n")
+    title = PRTitle(lines[0])
+    body = PRBody(message)
+    return title, body
+
+
+@dispatch
+def parse_commit_message(lines: list[str]) -> tuple[PRTitle, PRBody]:  # noqa: F811
+    """Parse commit message from list of lines"""
+    if not lines:
+        return PRTitle("No commit message"), PRBody("No commit message")
+    title = PRTitle(lines[0].strip())
+    body = PRBody("\n".join(lines))
+    return title, body
+
+
 def run_git_with_hook_retry(
     args: list[str], repo_path: GitPath, max_retries: int = 2
 ) -> CommandResult:
@@ -554,7 +554,6 @@ def run_git_with_hook_retry(
 
 
 @mcp.tool()
-@beartype
 def start_vibing() -> str:
     """🚀 CALL THIS FIRST before making any code changes! Creates a new git branch and starts auto-committing all file changes every second. Safe to call multiple times - will not create duplicate sessions."""
     try:
@@ -566,7 +565,6 @@ def start_vibing() -> str:
 
 
 @mcp.tool()
-@beartype
 def stop_vibing(commit_message: str) -> str:
     """🏁 Call this ONLY when the user explicitly says to stop or asks you to stop the session. Squashes all auto-commits into a single commit with your message, rebases onto latest main, and creates a PR. Do NOT call this automatically - wait for user confirmation before stopping. Safe to call even if not vibing.
 
@@ -730,7 +728,6 @@ def stop_vibing(commit_message: str) -> str:
 
 
 @mcp.tool()
-@beartype
 def stash_and_vibe() -> str:
     """📦 Stash uncommitted changes and start a new vibe session from main. Your changes will be saved and can be restored later with 'git stash pop'."""
     try:
@@ -761,7 +758,6 @@ def stash_and_vibe() -> str:
 
 
 @mcp.tool()
-@beartype
 def commit_and_vibe() -> str:
     """💾 Commit all uncommitted changes as 'WIP' and start a new vibe session from main."""
     try:
@@ -796,7 +792,6 @@ def commit_and_vibe() -> str:
 
 
 @mcp.tool()
-@beartype
 def vibe_from_here() -> str:
     """🌿 Start vibing from the current branch with all existing changes. Any uncommitted changes will be auto-committed as part of the vibe session."""
 
@@ -843,7 +838,6 @@ def vibe_from_here() -> str:
 
 
 @mcp.tool()
-@beartype
 def vibe_status() -> str:
     """📊 Check the current vibe session status - whether you're currently vibing or idle. Use this to understand the current state.
 
@@ -875,7 +869,6 @@ def vibe_status() -> str:
         return f"⚪ NOT INITIALIZED: Error checking repository status: {e}"
 
 
-@beartype
 def signal_handler(sig: int, frame) -> None:
     """Handle SIGINT/SIGTERM gracefully"""
     if isinstance(session.state, VibingState):
@@ -884,7 +877,7 @@ def signal_handler(sig: int, frame) -> None:
     sys.exit(0)
 
 
-def main():
+def main() -> None:
     """Main entry point for the MCP server"""
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)

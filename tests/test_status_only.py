@@ -250,63 +250,42 @@ def test_run_git_command_exception_handling():
 
 def test_find_git_repo_exact_path_check():
     """Test find_git_repo checks for exact .git path."""
-    import unittest.mock
-
-    # Mock the entire find_git_repo function to test the mutation
-    with unittest.mock.patch("vibe_git.vibe_status_only.Path") as MockPath:
-        mock_cwd = unittest.mock.MagicMock()
-        mock_parent = unittest.mock.MagicMock()
-
-        # Set up the path hierarchy
-        MockPath.cwd.return_value = mock_cwd
-        mock_cwd.parent = mock_parent
-        mock_parent.parent = mock_parent  # Make parent of parent be itself (root)
-
-        # Mock the / operator to return a new mock
-        def mock_div(self, other):
-            result = unittest.mock.MagicMock()
-            # .git exists, .GIT doesn't
-            if other == ".git":
-                result.exists.return_value = True
-            elif other == ".GIT":
-                result.exists.return_value = False
-            else:
-                result.exists.return_value = False
-            return result
-
-        mock_cwd.__truediv__ = mock_div
-        mock_cwd.__ne__.return_value = True  # current != current.parent
-
-        # Test that find_git_repo finds .git
-        result = find_git_repo()
-        assert result == mock_cwd
-
-        # Now test with only .GIT existing (should fail)
-        def mock_div_git_upper(self, other):
-            result = unittest.mock.MagicMock()
-            # Only .GIT exists, not .git
-            if other == ".git":
-                result.exists.return_value = False
-            elif other == ".GIT":
-                result.exists.return_value = True
-            else:
-                result.exists.return_value = False
-            return result
-
-        mock_cwd.__truediv__ = mock_div_git_upper
-        mock_cwd.__ne__.side_effect = [
-            True,
-            False,
-        ]  # First iteration: True, then False to exit loop
-
-        # Reset the mock
-        MockPath.cwd.return_value = mock_cwd
-
+    # Test with real directories since beartype validates Path types
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a subdirectory to search from
+        subdir = Path(tmpdir) / "subdir"
+        subdir.mkdir()
+        
+        # Save current directory
+        original_cwd = os.getcwd()
+        
         try:
-            find_git_repo()
-            raise AssertionError("Should have raised RuntimeError")
-        except RuntimeError as e:
-            assert str(e) == "Not in a git repository"
+            # Test 1: .git exists (should find repo)
+            git_dir = Path(tmpdir) / ".git"
+            git_dir.mkdir()
+            
+            os.chdir(subdir)
+            result = find_git_repo()
+            # Resolve both paths to handle symlinks
+            assert result.resolve() == Path(tmpdir).resolve()
+            
+            # Clean up .git
+            git_dir.rmdir()
+            
+            # Test 2: Only .GIT exists
+            # Note: On case-insensitive filesystems (like macOS), 
+            # .GIT and .git are the same, so this test would pass.
+            # We'll skip this test on macOS
+            import platform
+            if platform.system() != "Darwin":
+                git_upper_dir = Path(tmpdir) / ".GIT" 
+                git_upper_dir.mkdir()
+                
+                with pytest.raises(RuntimeError, match="Not in a git repository"):
+                    find_git_repo()
+                
+        finally:
+            os.chdir(original_cwd)
 
 
 def test_find_git_repo_exact_error_message():

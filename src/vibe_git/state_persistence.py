@@ -8,12 +8,9 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
-from beartype import beartype
-
 from .type_utils import BranchName, GitPath
 
 
-@beartype
 @dataclass
 class PersistedSessionState:
     """Session state that persists between MCP restarts"""
@@ -34,7 +31,6 @@ class PersistedSessionState:
         return cls(**data)
 
 
-@beartype
 class SessionPersistence:
     """Handles reading and writing session state"""
 
