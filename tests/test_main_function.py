@@ -28,14 +28,21 @@ def test_main_function_runs():
 
 def test_signal_handler():
     """Test that signal handler works correctly"""
+    # Import VibingState to mock isinstance check
+    from vibe_git.main import VibingState
+    
     # Mock session and sys.exit
     with patch('vibe_git.main.session') as mock_session:
         with patch('vibe_git.main.sys.exit') as mock_exit:
-            # Create a mock VibingState with observer
+            # Create a real VibingState instance with mock observer
             mock_observer = MagicMock()
-            mock_vibing_state = MagicMock()
-            mock_vibing_state.observer = mock_observer
-            mock_session.state = mock_vibing_state
+            mock_event = MagicMock()
+            vibing_state = VibingState(
+                branch_name="vibe-test",
+                observer=mock_observer,
+                commit_event=mock_event
+            )
+            mock_session.state = vibing_state
             
             # Call signal handler
             signal_handler(signal.SIGINT, None)
