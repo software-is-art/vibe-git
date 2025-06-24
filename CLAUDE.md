@@ -9,37 +9,73 @@ An MCP (Model Context Protocol) server that enables friction-free git workflows 
 
 ## Architecture Decisions
 
-### Language: Rust
-We're using Rust for performance, memory safety, and its excellent type system.
+### Language: Python
+We're using Python with advanced type safety libraries for reliability and maintainability.
 
-### Typestate Programming Pattern
-This project extensively uses the typestate pattern to encode state transitions at the type level, preventing invalid operations at compile time.
+### Type Safety with beartype & plum
+This project uses runtime type checking and multiple dispatch to achieve type safety similar to statically typed languages.
 
-#### Example States:
-```rust
-// Vibe session states
-struct Idle;
-struct Vibing { branch: String, watcher: FileWatcher };
-struct Stopping { branch: String };
+#### State Machine with Type Safety:
+```python
+# Vibe session states
+@dataclass(frozen=True)
+class IdleState:
+    """No active vibe session"""
+    pass
 
-// Git repository states  
-struct Clean;
-struct Dirty;
-struct Detached;
+@dataclass(frozen=True)
+class VibingState:
+    """Active vibe session"""
+    branch_name: BranchName
+    observer: Observer
+    commit_event: Event
+
+@dataclass(frozen=True)
+class DirtyState:
+    """Repository has uncommitted changes"""
+    branch_name: str
+    changes: str
+```
+
+#### Multiple Dispatch for Clean Code:
+```python
+@dispatch
+def start_vibing_from_state(state: IdleState, repo_path: GitPath) -> VibeStartResult:
+    """Start from clean state"""
+
+@dispatch  
+def start_vibing_from_state(state: VibingState, repo_path: GitPath) -> VibeStartResult:
+    """Already vibing"""
+
+@dispatch
+def start_vibing_from_state(state: DirtyState, repo_path: GitPath) -> VibeStartResult:
+    """Handle uncommitted changes"""
+```
+
+#### Semantic Types with Runtime Validation:
+```python
+# Path that must contain .git directory
+GitPath = Annotated[Path, Is[lambda p: (p / ".git").exists()]]
+
+# Semantic string types
+BranchName = NewType("BranchName", str)
+CommitHash = NewType("CommitHash", str)
+PRTitle = NewType("PRTitle", str)
 ```
 
 #### Key Benefits:
-1. **Compile-time guarantees**: Can't call `stop_vibing` when not vibing
-2. **Self-documenting**: Types express valid operations
-3. **Zero runtime cost**: All checks happen at compile time
-4. **Prevents race conditions**: State transitions are explicit
+1. **Runtime guarantees**: Invalid types caught before causing issues
+2. **Clean dispatch**: No nested if/else chains
+3. **Self-documenting**: Types express intent clearly
+4. **State safety**: Invalid state transitions prevented
+5. **Better refactoring**: Type system catches breaking changes
 
 ### Dependencies
-- `rmcp`: Official MCP Rust SDK for protocol implementation
-- `rmcp-macros`: Procedural macros for MCP tool declarations
-- `git2`: Native git operations
-- `notify`: Cross-platform file watching
-- `tokio`: Async runtime
+- `fastmcp`: FastMCP framework for MCP protocol implementation
+- `watchdog`: Cross-platform file system monitoring
+- `beartype`: Runtime type checking and validation
+- `plum-dispatch`: Multiple dispatch for clean code organization
+- `pydantic`: Data validation for MCP tool parameters
 
 ## MCP Tool Usage (For AI Models)
 
@@ -120,27 +156,54 @@ struct Detached;
 ## Development Guidelines
 
 ### When implementing new features:
-1. Model states as zero-sized types
-2. Use phantom types to track state
-3. Implement state transitions as consuming methods
-4. Never use runtime state checks when compile-time checks are possible
+1. Use `@beartype` decorators for runtime type checking
+2. Model states as frozen dataclasses
+3. Use `@dispatch` for handling different states/types
+4. Create semantic types with `NewType` for domain concepts
+5. Use `Annotated` types with validators for constraints
 
-### Example Pattern:
-```rust
-impl VibeSession<Idle> {
-    fn start_vibing(self) -> Result<VibeSession<Vibing>, Error> {
-        // Transition from Idle to Vibing
-    }
-}
+### Example Patterns:
 
-impl VibeSession<Vibing> {
-    fn stop_vibing(self, message: String) -> Result<VibeSession<Idle>, Error> {
-        // Can only stop when vibing
-    }
-}
+#### Type-Safe Functions:
+```python
+@beartype
+def find_git_repo() -> GitPath:
+    """Returns a Path that's guaranteed to be a git repo"""
+    current = Path.cwd()
+    while current != current.parent:
+        if (current / ".git").exists():
+            return GitPath(current)
+        current = current.parent
+    raise RuntimeError("Not in a git repository")
+```
+
+#### Multiple Dispatch:
+```python
+@dispatch
+def run_command(args: list[str], cwd: Path | None = None) -> CommandResult:
+    """List version"""
+
+@dispatch  
+def run_command(command: str, cwd: Path | None = None) -> CommandResult:
+    """String version - auto-splits"""
+    return run_command(command.split(), cwd)
+```
+
+#### State Transitions:
+```python
+@contextmanager
+def atomic_state_transition(session: VibeSession):
+    """Ensure state transitions are atomic"""
+    original_state = session.state
+    try:
+        yield
+    except Exception:
+        session.state = original_state
+        raise
 ```
 
 ## Testing Strategy
-- Unit tests for each state transition
+- Unit tests for type validation
 - Integration tests for full workflows
-- Property-based tests for state machine invariants
+- Mutation testing with mutmut for 100% coverage
+- Type safety tests to verify beartype catches errors
