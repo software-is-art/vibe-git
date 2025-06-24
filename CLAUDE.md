@@ -207,3 +207,4 @@ def atomic_state_transition(session: VibeSession):
 - Integration tests for full workflows
 - Mutation testing with mutmut for 100% coverage
 - Type safety tests to verify beartype catches errors
+- pytest-beartype for automatic runtime type checking in tests

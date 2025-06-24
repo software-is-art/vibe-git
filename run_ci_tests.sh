@@ -30,32 +30,22 @@ echo "🔍 Running ruff lint..."
 uv run ruff check .
 LINT_EXIT=$?
 
-# Run mutation testing with cosmic-ray
+# Run mutation testing with mutmut
 echo
-echo "🧬 Running mutation testing with cosmic-ray..."
+echo "🧬 Running mutation testing with mutmut..."
 # Always start fresh to avoid cache corruption issues
-rm -f mutants.sqlite
-uv run cosmic-ray init mutants.toml mutants.sqlite
+rm -rf .mutmut-cache
 
-# Run cosmic-ray mutation testing
-uv run cosmic-ray exec mutants.toml mutants.sqlite
+# Run mutmut mutation testing with parallel execution
+uv run mutmut run
 
 # Display results
 echo
 echo "📊 Mutation Testing Results:"
-DUMP_OUTPUT=$(uv run cosmic-ray dump mutants.sqlite)
-TOTAL=$(echo "$DUMP_OUTPUT" | grep -c '"job_id"' || echo "0")
-KILLED=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": "killed"' || echo "0") 
-SURVIVED=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": "survived"' || echo "0")
-PENDING=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": null' || echo "0")
-echo "Total mutations: $TOTAL"
-echo "Killed: $KILLED"
-echo "Survived: $SURVIVED"
-echo "Pending: $PENDING"
-if [ "$TOTAL" -gt 0 ]; then
-  SCORE=$(python3 -c "print(f'{$KILLED * 100 / $TOTAL:.1f}')" 2>/dev/null || echo "0")
-  echo "Mutation score: ${SCORE}%"
-fi
+uv run mutmut results
+
+# Check mutation score
+MUTMUT_EXIT=$?
 
 # Summary
 echo
@@ -64,9 +54,9 @@ echo "- unit tests: $([ $UNIT_EXIT -eq 0 ] && echo '✅ PASSED' || echo '❌ FAI
 echo "- integration tests: $([ $INTEGRATION_EXIT -eq 0 ] && echo '✅ PASSED' || echo '❌ FAILED')"
 echo "- ruff format: $([ $FORMAT_EXIT -eq 0 ] && echo '✅ PASSED' || echo '❌ FAILED')"
 echo "- ruff lint: $([ $LINT_EXIT -eq 0 ] && echo '✅ PASSED' || echo '❌ FAILED')"
-echo "- mutation testing: See results above"
+echo "- mutation testing: $([ $MUTMUT_EXIT -eq 0 ] && echo '✅ PASSED' || echo '❌ FAILED')"
 
 # Exit with error if any test failed
-if [ $UNIT_EXIT -ne 0 ] || [ $INTEGRATION_EXIT -ne 0 ] || [ $FORMAT_EXIT -ne 0 ] || [ $LINT_EXIT -ne 0 ]; then
+if [ $UNIT_EXIT -ne 0 ] || [ $INTEGRATION_EXIT -ne 0 ] || [ $FORMAT_EXIT -ne 0 ] || [ $LINT_EXIT -ne 0 ] || [ $MUTMUT_EXIT -ne 0 ]; then
     exit 1
 fi

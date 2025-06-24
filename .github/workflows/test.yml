@@ -115,41 +115,30 @@ jobs:
         git config --global user.email "actions@github.com"
         git config --global init.defaultBranch main
 
-    - name: Run mutation testing with cosmic-ray
+    - name: Run mutation testing with mutmut
       run: |
         # Always start fresh to avoid cache corruption issues
-        rm -f mutants.sqlite
-        uv run cosmic-ray init mutants.toml mutants.sqlite
+        rm -rf .mutmut-cache
         
-        # Run cosmic-ray mutation testing
-        uv run cosmic-ray exec mutants.toml mutants.sqlite
+        # Run mutmut mutation testing with parallel execution
+        uv run mutmut run
         
-        # Validate database completeness
-        DUMP_OUTPUT=$(uv run cosmic-ray dump mutants.sqlite)
-        PENDING_COUNT=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": null' || echo "0")
-        if [ "$PENDING_COUNT" -gt 0 ]; then
-          echo "Warning: $PENDING_COUNT mutations were not executed. Re-running cosmic-ray exec..."
-          uv run cosmic-ray exec mutants.toml mutants.sqlite
-        fi
-        
+        # Get mutation testing results
         echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        # Count total mutations and results
-        DUMP_OUTPUT=$(uv run cosmic-ray dump mutants.sqlite)
-        TOTAL=$(echo "$DUMP_OUTPUT" | grep -c '"job_id"' || echo "0")
-        KILLED=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": "killed"' || echo "0") 
-        SURVIVED=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": "survived"' || echo "0")
-        PENDING=$(echo "$DUMP_OUTPUT" | grep -c '"test_outcome": null' || echo "0")
-        echo "Total mutations: $TOTAL" >> $GITHUB_STEP_SUMMARY
-        echo "Killed: $KILLED" >> $GITHUB_STEP_SUMMARY  
-        echo "Survived: $SURVIVED" >> $GITHUB_STEP_SUMMARY
-        echo "Pending: $PENDING" >> $GITHUB_STEP_SUMMARY
-        if [ "$TOTAL" -gt 0 ]; then
-          SCORE=$(python3 -c "print(f'{$KILLED * 100 / $TOTAL:.1f}')" 2>/dev/null || echo "0")
-          echo "Mutation score: ${SCORE}%" >> $GITHUB_STEP_SUMMARY
-        fi
+        uv run mutmut results | tee -a $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true  # Don't fail the build if mutation score is low
+        
+        # Export results to file
+        uv run mutmut results > mutmut_results.txt
+        
+        # Check if all mutants were killed (exit code 0 means all killed)
+        uv run mutmut results
+        MUTMUT_EXIT=$?
+        
+        # Exit with the mutmut exit code
+        exit $MUTMUT_EXIT
+      continue-on-error: false  # Fail the build if mutations survive
 
   lint:
     runs-on: ubuntu-latest
