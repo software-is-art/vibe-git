@@ -24,7 +24,7 @@ test-unit:
 
 # Run mutation testing with parallel execution
 test-mutation:
-	uv run mutmut run --max-children=auto
+	uv run mutmut run
 
 # Show mutation testing results
 mutation-results:
