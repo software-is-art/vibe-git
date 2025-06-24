@@ -38,13 +38,15 @@ MainBranchName = Literal["main", "master"]
 FilePattern = NewType("FilePattern", str)
 """A file glob pattern"""
 
-GitRemote = NewType("GitRemote", str)  
+GitRemote = NewType("GitRemote", str)
 """A git remote name like 'origin'"""
 
 RelativePath = Annotated[Path, Is[lambda p: not p.is_absolute()]]
 """A path that must be relative"""
 
-ValidBranchName = Annotated[str, Is[lambda s: bool(re.match(r'^[a-zA-Z0-9_\-./]+$', s))]]
+ValidBranchName = Annotated[
+    str, Is[lambda s: bool(re.match(r"^[a-zA-Z0-9_\-./]+$", s))]
+]
 """A valid git branch name"""
 
 NonEmptyString = Annotated[str, Is[lambda s: len(s.strip()) > 0]]
@@ -53,7 +55,9 @@ NonEmptyString = Annotated[str, Is[lambda s: len(s.strip()) > 0]]
 ValidTimestamp = Annotated[int, Is[lambda t: t > 0]]
 """A positive timestamp value"""
 
-ValidCommitMessage = Annotated[str, Is[lambda s: len(s.strip()) > 0 and '\n' not in s.strip()[:50]]]
+ValidCommitMessage = Annotated[
+    str, Is[lambda s: len(s.strip()) > 0 and "\n" not in s.strip()[:50]]
+]
 """A valid commit message with non-empty first line under 50 chars"""
 
 VibeBranchName = Annotated[str, Is[lambda s: s.startswith("vibe-")]]

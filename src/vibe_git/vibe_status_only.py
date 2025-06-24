@@ -6,6 +6,7 @@ Minimal version of vibe status logic for focused mutation testing.
 import subprocess
 from pathlib import Path
 
+
 class VibeSession:
     """Represents the current vibe session state"""
 

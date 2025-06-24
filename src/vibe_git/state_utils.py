@@ -24,7 +24,7 @@ def get_state_name(state: SessionState) -> str:
 def can_transition_to(from_state: IdleState, to_state: SessionState) -> bool:
     """Check if transition from IdleState is valid"""
     # From idle, we can go to vibing or dirty
-    return isinstance(to_state, (VibingState, DirtyState))
+    return isinstance(to_state, VibingState | DirtyState)
 
 
 @dispatch
@@ -34,11 +34,11 @@ def can_transition_to(from_state: VibingState, to_state: SessionState) -> bool: 
     return isinstance(to_state, IdleState)
 
 
-@dispatch 
+@dispatch
 def can_transition_to(from_state: DirtyState, to_state: SessionState) -> bool:  # noqa: F811
     """Check if transition from DirtyState is valid"""
     # From dirty, we can go to idle (after resolving) or vibing
-    return isinstance(to_state, (IdleState, VibingState))
+    return isinstance(to_state, IdleState | VibingState)
 
 
 def validate_state_transition(from_state: SessionState, to_state: SessionState) -> None:

@@ -255,35 +255,36 @@ def test_find_git_repo_exact_path_check():
         # Create a subdirectory to search from
         subdir = Path(tmpdir) / "subdir"
         subdir.mkdir()
-        
+
         # Save current directory
         original_cwd = os.getcwd()
-        
+
         try:
             # Test 1: .git exists (should find repo)
             git_dir = Path(tmpdir) / ".git"
             git_dir.mkdir()
-            
+
             os.chdir(subdir)
             result = find_git_repo()
             # Resolve both paths to handle symlinks
             assert result.resolve() == Path(tmpdir).resolve()
-            
+
             # Clean up .git
             git_dir.rmdir()
-            
+
             # Test 2: Only .GIT exists
-            # Note: On case-insensitive filesystems (like macOS), 
+            # Note: On case-insensitive filesystems (like macOS),
             # .GIT and .git are the same, so this test would pass.
             # We'll skip this test on macOS
             import platform
+
             if platform.system() != "Darwin":
-                git_upper_dir = Path(tmpdir) / ".GIT" 
+                git_upper_dir = Path(tmpdir) / ".GIT"
                 git_upper_dir.mkdir()
-                
+
                 with pytest.raises(RuntimeError, match="Not in a git repository"):
                     find_git_repo()
-                
+
         finally:
             os.chdir(original_cwd)
 

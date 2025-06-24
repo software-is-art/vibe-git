@@ -5,7 +5,6 @@ from threading import Event
 from unittest.mock import MagicMock, patch
 
 import pytest
-from beartype.roar import BeartypeException
 
 from vibe_git.main import VibeFileHandler
 
@@ -32,7 +31,9 @@ class TestVibeFileHandler:
         """Test initialization with non-git directory validation"""
         # Without beartype_this_package(), the constructor doesn't automatically
         # validate GitPath. This is a known limitation.
-        pytest.skip("Requires automatic beartype decoration via beartype_this_package()")
+        pytest.skip(
+            "Requires automatic beartype decoration via beartype_this_package()"
+        )
 
     def test_should_ignore_git_internal_paths(self, tmp_path):
         """Test that .git internal paths are ignored"""

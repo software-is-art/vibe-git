@@ -8,14 +8,14 @@ from .type_utils import BranchName, PRBody, PRTitle
 @dataclass(frozen=True)
 class CommandResult:
     """Result of command execution with structured data"""
-    
+
     success: bool
     output: str
-    
+
     def __iter__(self):
         """Allow tuple unpacking for backwards compatibility"""
         return iter((self.success, self.output))
-    
+
     def __getitem__(self, index: int):
         """Allow indexing for backwards compatibility"""
         if index == 0:
@@ -29,14 +29,14 @@ class CommandResult:
 @dataclass(frozen=True)
 class ChangesResult:
     """Result of checking for uncommitted changes"""
-    
+
     has_changes: bool
     details: str
-    
+
     def __iter__(self):
         """Allow tuple unpacking for backwards compatibility"""
         return iter((self.has_changes, self.details))
-    
+
     def __getitem__(self, index: int):
         """Allow indexing for backwards compatibility"""
         if index == 0:
@@ -50,14 +50,14 @@ class ChangesResult:
 @dataclass(frozen=True)
 class ParsedMessage:
     """Result of parsing a commit message"""
-    
+
     title: PRTitle
     body: PRBody
-    
+
     def __iter__(self):
         """Allow tuple unpacking for backwards compatibility"""
         return iter((self.title, self.body))
-    
+
     def __getitem__(self, index: int):
         """Allow indexing for backwards compatibility"""
         if index == 0:
@@ -71,10 +71,10 @@ class ParsedMessage:
 @dataclass(frozen=True)
 class BranchCheckResult:
     """Result of checking current branch"""
-    
+
     branch_name: BranchName | None
     is_vibe_branch: bool
-    
+
     @property
     def has_branch(self) -> bool:
         """Check if we have a valid branch"""
