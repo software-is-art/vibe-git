@@ -71,10 +71,7 @@ def test_main_function_registers_all_tools():
         # Configure the mock to return our mock_mcp instance
         mock_fastmcp_class.return_value = mock_mcp
         
-        try:
-            main()
-        except SystemExit:
-            pass
+        main()
         
         # Verify all expected tools were registered
         expected_tools = [
