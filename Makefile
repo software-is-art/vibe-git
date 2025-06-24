@@ -20,11 +20,11 @@ test: test-unit test-mutation
 
 # Run unit tests
 test-unit:
-	uv run pytest test_vibe_git.py -v
+	uv run pytest -v
 
-# Run mutation testing
+# Run mutation testing with parallel execution
 test-mutation:
-	uv run mutmut run --paths-to-mutate main.py
+	uv run mutmut run --max-children=auto
 
 # Show mutation testing results
 mutation-results:
