@@ -87,16 +87,19 @@ def test_is_vibe_branch():
 def test_command_dispatch():
     """Test that command dispatch works with both string and list"""
     # Import run_command from git_utils explicitly
-    from vibe_git.git_utils import run_command
     import sys
     from pathlib import Path
-    
+
+    from vibe_git.git_utils import run_command
+
     # Use a specific directory to avoid issues with test pollution
     # Use the temp directory or current directory
     test_dir = Path.cwd()
-    
+
     # Test list version - this is the primary interface
-    success, output = run_command([sys.executable, "-c", "print('hello')"], cwd=test_dir)
+    success, output = run_command(
+        [sys.executable, "-c", "print('hello')"], cwd=test_dir
+    )
     assert success, f"List command failed: {output}"
     assert output.strip() == "hello", f"Expected 'hello', got '{output}'"
 
@@ -110,6 +113,7 @@ def test_command_dispatch():
 def test_beartype_validation():
     """Test that beartype catches type errors at runtime"""
     from plum.resolver import NotFoundLookupError
+
     from vibe_git.git_utils import run_command
 
     # With plum, incorrect types result in NotFoundLookupError
