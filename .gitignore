@@ -46,6 +46,9 @@ mutants/
 mutants.sqlite
 *.sqlite
 
+# Vibe session state (kept in .git/)
+# Note: .git/ is already ignored by git
+
 # Testing
 .pytest_cache/
 .coverage

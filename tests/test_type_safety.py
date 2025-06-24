@@ -89,12 +89,12 @@ def test_command_dispatch():
     # String version
     success, output = run_command("echo hello")
     assert success
-    assert output == "hello"
+    assert output.strip() == "hello"
 
     # List version
     success, output = run_command(["echo", "hello", "world"])
     assert success
-    assert output == "hello world"
+    assert output.strip() == "hello world"
 
 
 def test_beartype_validation():
