@@ -132,13 +132,16 @@ class TestVibeFileHandler:
         # Commit event should not be set
         assert not commit_event.is_set()
 
-    def test_on_any_event_respects_rate_limiting(self, tmp_path):
-        """Test that rate limiting prevents rapid commits"""
+    def test_on_any_event_with_non_zero_min_interval(self, tmp_path):
+        """Test rate limiting when min_commit_interval is non-zero"""
         git_dir = tmp_path / ".git"
         git_dir.mkdir()
         
         commit_event = Event()
         handler = VibeFileHandler(tmp_path, commit_event)
+        
+        # Set min_commit_interval to enable rate limiting
+        handler.min_commit_interval = 1.0
         
         # Set last commit time to recent
         handler.last_commit_time = time.time() - 0.5  # Half second ago
