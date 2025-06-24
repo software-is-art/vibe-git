@@ -26,7 +26,7 @@ class TestVibeFileHandler:
         
         assert handler.repo_path == tmp_path
         assert handler.commit_event == commit_event
-        assert handler.min_commit_interval == 1
+        assert handler.min_commit_interval == 0.0
         assert handler.last_commit_time == 0
 
     def test_init_with_invalid_repo_raises_beartype_error(self, tmp_path):
