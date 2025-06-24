@@ -55,7 +55,6 @@ def test_git_path_requires_exact_name():
 
         # Create a mock that tracks what path was checked
         checked_paths = []
-        original_exists = Path.exists
 
         def mock_exists(self):
             # Record the path being checked
