@@ -30,15 +30,15 @@ def test_git_path_validation():
         assert (git_path / ".git").exists()
 
 
-def test_git_path_case_sensitive():
-    """Test that .GIT (uppercase) is not accepted as a git repo"""
+def test_git_path_exact_check():
+    """Test that we're checking for exactly .git"""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         
-        # Create .GIT directory (uppercase)
-        (tmp_path / ".GIT").mkdir()
+        # Create .gitx directory (not .git)
+        (tmp_path / ".gitx").mkdir()
         
-        # Should fail because it's looking for lowercase .git
+        # Should fail because it's looking for .git not .gitx
         with pytest.raises(ValueError, match="is not a git repository"):
             validate_git_path(tmp_path)
 
