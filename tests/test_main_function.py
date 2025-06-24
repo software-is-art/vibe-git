@@ -1,6 +1,6 @@
 """Tests for the main function"""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 import pytest
 
@@ -18,25 +18,20 @@ def test_main_function_runs():
         mock_fastmcp_class.return_value = mock_mcp
         
         # Test that main() runs without raising exceptions
-        try:
-            # Call main - it should set up the server
-            main()
-            
-            # Verify FastMCP was called with correct parameters
-            mock_fastmcp_class.assert_called_once_with(
-                "vibe-git",
-                dependencies=["git", "gh"]
-            )
-            
-            # Verify tools were registered
-            assert mock_mcp.tool.call_count >= 6  # We have 6 tools
-            
-            # Verify run was called
-            mock_mcp.run.assert_called_once()
-            
-        except SystemExit:
-            # If main() calls sys.exit(), that's okay
-            pass
+        # Call main - it should set up the server
+        main()
+        
+        # Verify FastMCP was called with correct parameters
+        mock_fastmcp_class.assert_called_once_with(
+            "vibe-git",
+            dependencies=["git", "gh"]
+        )
+        
+        # Verify tools were registered
+        assert mock_mcp.tool.call_count >= 6  # We have 6 tools
+        
+        # Verify run was called
+        mock_mcp.run.assert_called_once()
 
 
 def test_main_function_with_interrupt():
