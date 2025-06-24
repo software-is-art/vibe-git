@@ -30,6 +30,19 @@ def test_git_path_validation():
         assert (git_path / ".git").exists()
 
 
+def test_git_path_case_sensitive():
+    """Test that .GIT (uppercase) is not accepted as a git repo"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        
+        # Create .GIT directory (uppercase)
+        (tmp_path / ".GIT").mkdir()
+        
+        # Should fail because it's looking for lowercase .git
+        with pytest.raises(ValueError, match="is not a git repository"):
+            validate_git_path(tmp_path)
+
+
 def test_is_vibe_branch():
     """Test vibe branch detection"""
     assert is_vibe_branch("vibe-1234567")
