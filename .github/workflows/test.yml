@@ -121,7 +121,7 @@ jobs:
         rm -rf .mutmut-cache
         
         # Run mutmut mutation testing with parallel execution
-        uv run mutmut run --max-children=auto
+        uv run mutmut run
         
         # Get mutation testing results
         echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
