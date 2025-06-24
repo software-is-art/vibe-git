@@ -37,7 +37,7 @@ echo "🧬 Running mutation testing with mutmut..."
 rm -rf .mutmut-cache
 
 # Run mutmut mutation testing with parallel execution
-uv run mutmut run --max-children=auto
+uv run mutmut run
 
 # Display results
 echo
