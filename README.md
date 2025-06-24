@@ -51,7 +51,7 @@ vibe-git automatically commits every single change as you work, so you can **com
 - **Pair programming with AI** - Let your AI partner be bold and creative
 - **Exploratory coding** - Try ideas without commitment anxiety
 
-## =� Installation
+## 📦 Installation
 
 ### Prerequisites
 
@@ -108,23 +108,23 @@ uv sync
 }
 ```
 
-## <� Usage
+## 🔧 Usage
 
 Once installed, vibe-git provides three MCP tools:
 
 ### `start_vibing()`
-=� **Call this FIRST** before making any code changes!
+🚀 **Call this FIRST** before making any code changes!
 - Creates a new git branch (or reuses existing vibe branch)
 - Starts real-time file watching
 - Auto-commits every file change instantly
 
 ### `vibe_status()`
-=� Check the current vibe session status
+📊 Check the current vibe session status
 - Shows if you're currently vibing or idle
 - Displays the active branch name
 
 ### `stop_vibing(commit_message)`
-<� **Call this when you're done** with your changes
+🏁 **Call this when you're done** with your changes
 - Squashes all auto-commits into a single meaningful commit
 - Rebases on latest main branch
 - Pushes to remote and creates a pull request
@@ -159,7 +159,7 @@ Once installed, vibe-git provides three MCP tools:
    - Professional pull request created automatically
    - Ready to share your work
 
-## � How it Works
+## ⚙️ How it Works
 
 ### Event-Driven File Watching
 - Uses Python's `watchdog` library for real-time file system monitoring
@@ -178,14 +178,14 @@ Once installed, vibe-git provides three MCP tools:
 - Proper error handling and status reporting
 - Works seamlessly with Claude Code
 
-## =� Safety Features
+## 🛡️ Safety Features
 
 - **Idempotent operations**: Safe to call tools multiple times
 - **Graceful cleanup**: File watchers stop properly on session end
 - **Error recovery**: Handles git conflicts and network issues
 - **State consistency**: Detects and recovers from inconsistent states
 
-## =' Configuration
+## ⚙️ Configuration
 
 The server automatically:
 - Detects your git repository root
@@ -195,7 +195,7 @@ The server automatically:
 
 No additional configuration needed!
 
-## = Troubleshooting
+## 🔧 Troubleshooting
 
 ### "Not in a git repository"
 Make sure the `cwd` in your `.mcp.json` points to a directory inside a git repository.
