@@ -52,16 +52,19 @@ def test_git_path_case_sensitive():
         git_upper = tmp_path / ".GIT"
         git_upper.mkdir()
         
-        # Check if filesystem is case-sensitive
-        git_lower = tmp_path / ".git"
-        if not git_lower.exists():
-            # Filesystem is case-sensitive, .git and .GIT are different
-            # Should fail because it's looking for lowercase .git
+        # The validate_git_path function should check for lowercase .git
+        # If the code is mutated to check for .GIT, this test will fail
+        # because .GIT exists but .git does not
+        
+        # On case-sensitive filesystems, .git and .GIT are different
+        # So this should fail since we only created .GIT
+        if not (tmp_path / ".git").exists():
+            # We created .GIT but not .git, so validation should fail
             with pytest.raises(ValueError, match="is not a git repository"):
                 validate_git_path(tmp_path)
         else:
-            # Filesystem is case-insensitive, .git and .GIT are the same
-            # Should succeed
+            # On case-insensitive filesystems, .git exists (same as .GIT)
+            # So validation should succeed
             result = validate_git_path(tmp_path)
             assert result == tmp_path
 
