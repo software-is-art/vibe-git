@@ -34,10 +34,10 @@ def test_git_path_exact_check():
     """Test that we're checking for exactly .git"""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        
+
         # Create .gitx directory (not .git)
         (tmp_path / ".gitx").mkdir()
-        
+
         # Should fail because it's looking for .git not .gitx
         with pytest.raises(ValueError, match="is not a git repository"):
             validate_git_path(tmp_path)
@@ -47,34 +47,35 @@ def test_git_path_requires_exact_name():
     """Test that validate_git_path checks for the exact '.git' string"""
     # This test ensures the mutation from ".git" to ".GIT" is caught
     # We mock the exists() method to control the behavior
-    
+
     from unittest.mock import Mock, patch
     import os
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        
+
         # Create a mock that tracks what path was checked
         checked_paths = []
         original_exists = Path.exists
-        
+
         def mock_exists(self):
             # Record the path being checked
             checked_paths.append(str(self))
             # Only return True if checking for lowercase .git
-            if str(self).endswith('/.git'):
+            if str(self).endswith("/.git"):
                 return True
             return False
-        
+
         # Patch Path.exists to use our mock
-        with patch.object(Path, 'exists', mock_exists):
+        with patch.object(Path, "exists", mock_exists):
             # This should succeed because we return True for .git
             result = validate_git_path(tmp_path)
             assert result == tmp_path
-            
+
             # Verify that it checked for lowercase .git
-            assert any(path.endswith('/.git') for path in checked_paths), \
+            assert any(path.endswith("/.git") for path in checked_paths), (
                 "validate_git_path should check for lowercase '.git'"
+            )
 
 
 def test_is_vibe_branch():
