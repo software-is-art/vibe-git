@@ -129,8 +129,8 @@ jobs:
         uv run mutmut results | tee -a $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         
-        # Export HTML report
-        uv run mutmut html
+        # Export results to file
+        uv run mutmut results > mutmut_results.txt
         
         # Check if all mutants were killed (exit code 0 means all killed)
         uv run mutmut results
