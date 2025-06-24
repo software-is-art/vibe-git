@@ -5,7 +5,7 @@ import signal
 
 import pytest
 
-from vibe_git.main import main
+from vibe_git.main import main, signal_handler
 
 
 def test_main_function_runs():
