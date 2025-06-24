@@ -48,17 +48,43 @@ def test_stop_vibing_respects_hooks():
 
 def test_file_handler_ignore_functionality():
     """Test VibeFileHandler ignore functionality."""
+    import subprocess
+    import tempfile
     from pathlib import Path
     from threading import Event
 
-    handler = main.VibeFileHandler(Path("."), Event())
+    # Create a temporary git repo for testing
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_path = Path(tmpdir)
 
-    # Test some basic ignore patterns
-    assert handler.should_ignore_path(".git/config")
-    assert handler.should_ignore_path("__pycache__/test.py")
-    assert not handler.should_ignore_path("normal_file.py")
+        # Initialize git repo
+        subprocess.run(["git", "init"], cwd=repo_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.name", "Test"], cwd=repo_path, capture_output=True
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"],
+            cwd=repo_path,
+            capture_output=True,
+        )
 
-    print("✅ VibeFileHandler ignore functionality works")
+        # Now repo_path is a valid GitPath
+        from vibe_git.type_utils import GitPath
+
+        repo_path = GitPath(repo_path)
+
+        handler = main.VibeFileHandler(repo_path, Event())
+
+        # Create a .gitignore file
+        gitignore_content = "__pycache__/\n*.pyc\n.venv/\n"
+        (repo_path / ".gitignore").write_text(gitignore_content)
+
+        # Test some basic ignore patterns
+        assert handler.should_ignore_path(".git/config")  # .git is always ignored
+        assert handler.should_ignore_path("__pycache__/test.py")  # in .gitignore
+        assert not handler.should_ignore_path("normal_file.py")  # not ignored
+
+        print("✅ VibeFileHandler ignore functionality works")
 
 
 if __name__ == "__main__":

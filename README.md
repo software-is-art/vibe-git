@@ -222,6 +222,7 @@ We take code quality seriously! This project features:
 - **100% mutation testing score** - All mutants killed using [mutmut](https://github.com/boxed/mutmut)
 - **Comprehensive integration tests** - Testing all MCP tools and edge cases
 - **CI/CD with GitHub Actions** - Automated testing on every PR
+- **Runtime type safety** - Using [beartype](https://github.com/beartype/beartype) for validation
 
 To run tests locally:
 ```bash
@@ -232,11 +233,22 @@ uv run pytest
 uv run mutmut run
 ```
 
+## 🏗️ Architecture
+
+This project uses modern Python patterns for reliability and maintainability:
+
+- **[beartype](https://github.com/beartype/beartype)** - Runtime type checking for safer code
+- **[plum-dispatch](https://github.com/beartype/plum)** - Multiple dispatch for clean code organization
+- **Type-safe state machine** - Explicit states prevent invalid operations
+- **Semantic types** - `GitPath`, `BranchName`, etc. for self-documenting code
+
 ## 🤝 Contributing
 
 Contributions welcome! This is a Python project using:
 - **FastMCP** for MCP server implementation
 - **watchdog** for file system monitoring  
+- **beartype** for runtime type validation
+- **plum** for multiple dispatch patterns
 - **uv** for dependency management
 - **pytest** for testing
 - **mutmut** for mutation testing
