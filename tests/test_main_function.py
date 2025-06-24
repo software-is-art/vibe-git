@@ -1,6 +1,7 @@
 """Tests for the main function"""
 
 from unittest.mock import patch, MagicMock, call
+import signal
 
 import pytest
 
@@ -9,29 +10,20 @@ from vibe_git.main import main
 
 def test_main_function_runs():
     """Test that main function runs without errors"""
-    # Mock the MCP server
-    mock_mcp = MagicMock()
-    
-    # Mock the FastMCP class
-    with patch('vibe_git.main.FastMCP') as mock_fastmcp_class:
-        # Configure the mock to return our mock_mcp instance
-        mock_fastmcp_class.return_value = mock_mcp
-        
-        # Test that main() runs without raising exceptions
-        # Call main - it should set up the server
-        main()
-        
-        # Verify FastMCP was called with correct parameters
-        mock_fastmcp_class.assert_called_once_with(
-            "vibe-git",
-            dependencies=["git", "gh"]
-        )
-        
-        # Verify tools were registered
-        assert mock_mcp.tool.call_count >= 6  # We have 6 tools
-        
-        # Verify run was called
-        mock_mcp.run.assert_called_once()
+    # Mock the global mcp object
+    with patch('vibe_git.main.mcp') as mock_mcp:
+        # Mock signal.signal to prevent actual signal handling
+        with patch('vibe_git.main.signal.signal') as mock_signal:
+            # Test that main() runs without raising exceptions
+            main()
+            
+            # Verify signal handlers were set up
+            assert mock_signal.call_count == 2
+            mock_signal.assert_any_call(signal.SIGINT, signal_handler)
+            mock_signal.assert_any_call(signal.SIGTERM, signal_handler)
+            
+            # Verify run was called
+            mock_mcp.run.assert_called_once()
 
 
 def test_main_function_with_interrupt():
