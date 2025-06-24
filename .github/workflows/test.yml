@@ -138,7 +138,7 @@ jobs:
         
         # Exit with the mutmut exit code
         exit $MUTMUT_EXIT
-      continue-on-error: true  # Don't fail the build if mutation score is low
+      continue-on-error: false  # Fail the build if mutations survive
 
   lint:
     runs-on: ubuntu-latest
