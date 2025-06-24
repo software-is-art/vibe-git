@@ -1,9 +1,8 @@
 """Tests for VibeFileHandler to achieve 100% mutation coverage"""
 
-from pathlib import Path
+import time
 from threading import Event
 from unittest.mock import MagicMock, patch
-import time
 
 import pytest
 from beartype.roar import BeartypeException

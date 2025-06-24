@@ -48,8 +48,7 @@ def test_git_path_requires_exact_name():
     # This test ensures the mutation from ".git" to ".GIT" is caught
     # We mock the exists() method to control the behavior
 
-    from unittest.mock import Mock, patch
-    import os
+    from unittest.mock import patch
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)

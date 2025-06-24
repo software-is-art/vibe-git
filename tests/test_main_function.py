@@ -1,9 +1,7 @@
 """Tests for the main function"""
 
-from unittest.mock import patch, MagicMock, call
 import signal
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from vibe_git.main import main, signal_handler
 
