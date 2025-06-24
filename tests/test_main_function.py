@@ -48,14 +48,8 @@ def test_main_function_with_interrupt():
         mock_fastmcp_class.return_value = mock_mcp
         
         # Test that main() handles KeyboardInterrupt without crashing
-        try:
-            main()
-        except KeyboardInterrupt:
-            # Should not re-raise KeyboardInterrupt
-            pytest.fail("main() should handle KeyboardInterrupt gracefully")
-        except SystemExit:
-            # SystemExit is okay
-            pass
+        # main() should handle KeyboardInterrupt gracefully
+        main()  # Should not raise
 
 
 def test_main_function_registers_all_tools():
