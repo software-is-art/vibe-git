@@ -12,6 +12,7 @@ import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from threading import Event, Thread
 from typing import Literal, NewType, TypeAlias
@@ -24,6 +25,9 @@ from plum import dispatch
 from pydantic import BaseModel
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
+
+from .git_utils import get_current_branch as get_current_branch_util
+from .state_persistence import PersistedSessionState, SessionPersistence
 
 # Type definitions with beartype validation
 GitPath = Annotated[Path, Is[lambda p: (p / ".git").exists()]]
@@ -136,6 +140,45 @@ def find_git_repo() -> GitPath:
             return GitPath(current)
         current = current.parent
     raise RuntimeError("Not in a git repository")
+
+
+@beartype
+def check_orphaned_sessions() -> str | None:
+    """Check for orphaned vibe sessions on startup"""
+    try:
+        repo_path = find_git_repo()
+        persistence = SessionPersistence(repo_path)
+
+        if not persistence.has_session():
+            return None
+
+        saved_session = persistence.load_session()
+        if not saved_session:
+            return None
+
+        # Check if session is stale (older than 24 hours)
+        if persistence.is_session_stale(max_age_hours=24):
+            persistence.delete_session()
+            return f"⚠️ Found stale vibe session on branch '{saved_session.branch_name}' (older than 24 hours). Session cleared."
+
+        # Check if we're on the vibe branch
+        current_branch = get_current_branch_util(repo_path)
+        if current_branch == saved_session.branch_name:
+            return f"📍 Found existing vibe session on branch '{saved_session.branch_name}'. Use start_vibing() to resume."
+        else:
+            return f"⚠️ Found orphaned vibe session on branch '{saved_session.branch_name}'. Current branch is '{current_branch}'. Use start_vibing() to resume or stop_vibing() to clean up."
+
+    except RuntimeError:
+        # Not in a git repo
+        return None
+    except Exception as e:
+        return f"⚠️ Error checking for orphaned sessions: {e}"
+
+
+# Check for orphaned sessions on startup
+startup_message = check_orphaned_sessions()
+if startup_message:
+    print(f"\n{startup_message}\n", file=sys.stderr)
 
 
 @dispatch
@@ -342,8 +385,34 @@ def start_file_watcher(repo_path: GitPath, branch_name: BranchName) -> VibingSta
 @beartype
 def start_vibing_from_state(state: IdleState, repo_path: GitPath) -> VibeStartResult:
     """Start vibing from idle state"""
-    # Check current branch first
+    # Check for saved session first
+    persistence = SessionPersistence(repo_path)
+    saved_session = persistence.load_session()
+
+    # Check current branch
     current = get_current_branch(repo_path)
+
+    # Check if we have a saved session and can auto-resume
+    if saved_session and saved_session.branch_name != current:
+        # We have a saved session on a different branch
+        success, output = run_git_command(
+            ["checkout", saved_session.branch_name], repo_path
+        )
+        if success:
+            # Successfully switched to saved branch
+            new_state = start_file_watcher(repo_path, saved_session.branch_name)
+            with atomic_state_transition(session):
+                session.transition_to(new_state)
+
+            # Update session timestamp
+            saved_session.session_start_time = datetime.now().isoformat()
+            persistence.save_session(saved_session)
+
+            return VibeStartResult(
+                success=True,
+                branch_name=saved_session.branch_name,
+                message=f"🔄 Auto-resumed vibe session on branch '{saved_session.branch_name}'! Continuing from where you left off.",
+            )
 
     # Check if we're already on a vibe branch (e.g., after MCP restart)
     if current and is_vibe_branch(current):
@@ -351,6 +420,14 @@ def start_vibing_from_state(state: IdleState, repo_path: GitPath) -> VibeStartRe
         new_state = start_file_watcher(repo_path, current)
         with atomic_state_transition(session):
             session.transition_to(new_state)
+
+        # Save/update session state for recovery
+        persisted_state = PersistedSessionState(
+            branch_name=current,
+            session_start_time=datetime.now().isoformat(),
+            auto_commit_enabled=True,
+        )
+        persistence.save_session(persisted_state)
 
         return VibeStartResult(
             success=True,
@@ -408,6 +485,15 @@ def start_vibing_from_state(state: IdleState, repo_path: GitPath) -> VibeStartRe
     new_state = start_file_watcher(repo_path, branch_name)
     with atomic_state_transition(session):
         session.transition_to(new_state)
+
+    # Save session state for recovery
+    persistence = SessionPersistence(repo_path)
+    persisted_state = PersistedSessionState(
+        branch_name=branch_name,
+        session_start_time=datetime.now().isoformat(),
+        auto_commit_enabled=True,
+    )
+    persistence.save_session(persisted_state)
 
     return VibeStartResult(
         success=True,
@@ -618,6 +704,10 @@ def stop_vibing(commit_message: str) -> str:
         # Reset state
         with atomic_state_transition(session):
             session.transition_to(IdleState())
+
+        # Clean up persisted session state
+        persistence = SessionPersistence(repo_path)
+        persistence.delete_session()
 
         result = VibeStopResult(
             success=True,

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from beartype.roar import BeartypeCallHintViolation
 
-from vibe_git.git_utils import find_git_repo, get_current_branch, run_command
+from vibe_git.git_utils import find_git_repo, get_current_branch
 from vibe_git.type_utils import is_vibe_branch, validate_git_path
 
 
@@ -86,20 +86,35 @@ def test_is_vibe_branch():
 
 def test_command_dispatch():
     """Test that command dispatch works with both string and list"""
-    # String version
-    success, output = run_command("echo hello")
-    assert success
-    assert output == "hello"
+    # Import run_command from git_utils explicitly
+    import sys
+    from pathlib import Path
 
-    # List version
-    success, output = run_command(["echo", "hello", "world"])
-    assert success
-    assert output == "hello world"
+    from vibe_git.git_utils import run_command
+
+    # Use a specific directory to avoid issues with test pollution
+    # Use the temp directory or current directory
+    test_dir = Path.cwd()
+
+    # Test list version - this is the primary interface
+    success, output = run_command(
+        [sys.executable, "-c", "print('hello')"], cwd=test_dir
+    )
+    assert success, f"List command failed: {output}"
+    assert output.strip() == "hello", f"Expected 'hello', got '{output}'"
+
+    # Test string version - it should split and call the list version
+    # Use a simple Python command to avoid shell quoting issues
+    success, output = run_command(f"{sys.executable} --version", cwd=test_dir)
+    assert success, f"String command failed: {output}"
+    assert "Python" in output, f"Expected 'Python' in output, got '{output}'"
 
 
 def test_beartype_validation():
     """Test that beartype catches type errors at runtime"""
     from plum.resolver import NotFoundLookupError
+
+    from vibe_git.git_utils import run_command
 
     # With plum, incorrect types result in NotFoundLookupError
     with pytest.raises(NotFoundLookupError):

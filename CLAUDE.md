@@ -86,11 +86,21 @@ PRTitle = NewType("PRTitle", str)
 2. **Make your code changes** (files are auto-committed every second)
 3. **When finished**: `stop_vibing(commit_message="Your feature description")`
 
+### State Persistence & Auto-Resume
+vibe-git now persists session state between MCP restarts:
+
+- **Automatic Detection**: On MCP startup, checks for orphaned vibe sessions
+- **Auto-Resume**: When you call `start_vibing()`, it automatically resumes any saved session
+- **Session Files**: State saved in `.git/vibe-session.json` (git-ignored)
+- **Stale Sessions**: Sessions older than 24 hours are automatically cleaned up
+- **Event Log**: All session events logged to `.git/vibe-events.jsonl` for debugging
+
 ### Available Tools
 
 #### `start_vibing()`
 - **When to use**: FIRST thing before editing any files
 - **What it does**: Creates git branch from latest main, starts auto-commit watcher
+- **Auto-Resume**: If a previous session exists, automatically resumes it
 - **Safe to call**: Multiple times (idempotent)
 - **Handles uncommitted changes**: Prompts to use one of the helper functions below
 
