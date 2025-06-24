@@ -190,8 +190,9 @@ def test_regression_stop_vibing_checkout_bug():
         # If we're still on main, it means start_vibing didn't actually create a branch
         # This happens when the session state is already set. Reset it.
         if current_branch == "main":
-            main.session.is_vibing = False
-            main.session.branch_name = None
+            from .test_utils import reset_session
+
+            reset_session()
             result = main.start_vibing.fn()
             current_branch = subprocess.run(
                 ["git", "branch", "--show-current"], capture_output=True, text=True
