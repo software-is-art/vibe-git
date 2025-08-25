@@ -68,4 +68,3 @@ mod tests {
         assert_eq!(finished.branch(), "feature-branch");
     }
 }
-
