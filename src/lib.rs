@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, process::Command};
 
 /// Marker type for the session before it has started.
 pub struct Idle;
@@ -26,6 +26,12 @@ impl VibeSession<Idle> {
 
     /// Start vibing, transitioning to the `Vibing` state.
     pub fn start(self) -> VibeSession<Vibing> {
+        let status = Command::new("git")
+            .args(["checkout", "-b", &self.branch])
+            .status()
+            .expect("failed to run git checkout");
+        assert!(status.success(), "git checkout failed");
+
         VibeSession {
             branch: self.branch,
             state: PhantomData,
@@ -36,6 +42,12 @@ impl VibeSession<Idle> {
 impl VibeSession<Vibing> {
     /// Finish vibing, transitioning to the `Finished` state.
     pub fn finish(self) -> VibeSession<Finished> {
+        let status = Command::new("git")
+            .args(["checkout", "main"])
+            .status()
+            .expect("failed to checkout main");
+        assert!(status.success(), "git checkout main failed");
+
         VibeSession {
             branch: self.branch,
             state: PhantomData,
@@ -58,9 +70,31 @@ impl VibeSession<Finished> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
+    use tempfile::tempdir;
 
     #[test]
     fn typestate_transitions() {
+        let dir = tempdir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+
+        Command::new("git")
+            .args(["init", "-b", "main"])
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args(["config", "user.name", "Test User"])
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args(["commit", "--allow-empty", "-m", "init"])
+            .status()
+            .unwrap();
+
         let idle = VibeSession::<Idle>::new("feature-branch");
         let vibing = idle.start();
         assert_eq!(vibing.branch(), "feature-branch");
