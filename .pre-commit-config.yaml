@@ -1,10 +1,15 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version
-    rev: v0.11.13
+  - repo: local
     hooks:
-      # Run the linter on commit
-      - id: ruff
-        args: [ --fix ]
-      # Run the formatter on commit
-      - id: ruff-format
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all
+        language: system
+        pass_filenames: false
+        types: [rust]
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --all-targets --all-features -- -D warnings
+        language: system
+        pass_filenames: false
+        types: [rust]
