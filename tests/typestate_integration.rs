@@ -3,11 +3,20 @@ use tempfile::tempdir;
 use vibe_git::{Idle, VibeSession};
 
 #[test]
+
+/// Verify MCP-style typestate flow across git branches.
+
+
 fn typestate_flow_with_git() {
     let dir = tempdir().unwrap();
     std::env::set_current_dir(&dir).unwrap();
 
-    Command::new("git").args(["init", "-b", "main"]).status().unwrap();
+
+    Command::new("git")
+        .args(["init", "-b", "main"])
+        .status()
+        .unwrap();
+
     Command::new("git")
         .args(["config", "user.email", "test@example.com"])
         .status()
@@ -47,4 +56,3 @@ fn typestate_flow_with_git() {
     assert_eq!(branch.trim(), "main");
     assert_eq!(finished.branch(), "integration-branch");
 }
-
