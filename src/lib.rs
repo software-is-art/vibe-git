@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, process::Command};
 
 mod mcp;
+
 pub use mcp::McpClient;
 
 /// Marker type for the session before it has started.
@@ -85,6 +86,7 @@ mod tests {
             .args(["init", "-b", "main"])
             .status()
             .unwrap();
+
         Command::new("git")
             .args(["config", "user.email", "test@example.com"])
             .status()
