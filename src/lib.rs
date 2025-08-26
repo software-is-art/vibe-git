@@ -78,10 +78,12 @@ mod tests {
         let dir = tempdir().unwrap();
         std::env::set_current_dir(&dir).unwrap();
 
+
         Command::new("git")
             .args(["init", "-b", "main"])
             .status()
             .unwrap();
+
         Command::new("git")
             .args(["config", "user.email", "test@example.com"])
             .status()
