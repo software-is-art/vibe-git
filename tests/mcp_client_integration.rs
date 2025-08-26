@@ -1,9 +1,9 @@
 use std::process::Command;
 use tempfile::tempdir;
-use vibe_git::{Idle, VibeSession};
+use vibe_git::McpClient;
 
 #[test]
-fn typestate_flow_with_git() {
+fn mcp_client_switches_branches() {
     let dir = tempdir().unwrap();
     std::env::set_current_dir(&dir).unwrap();
 
@@ -11,7 +11,6 @@ fn typestate_flow_with_git() {
         .args(["init", "-b", "main"])
         .status()
         .unwrap();
-
     Command::new("git")
         .args(["config", "user.email", "test@example.com"])
         .status()
@@ -25,8 +24,8 @@ fn typestate_flow_with_git() {
         .status()
         .unwrap();
 
-    let idle = VibeSession::<Idle>::new("integration-branch");
-    let vibing = idle.start();
+    let mut client = McpClient::new();
+    client.start_vibing("integration-branch");
 
     let branch = String::from_utf8(
         Command::new("git")
@@ -37,9 +36,8 @@ fn typestate_flow_with_git() {
     )
     .unwrap();
     assert_eq!(branch.trim(), "integration-branch");
-    assert_eq!(vibing.branch(), "integration-branch");
 
-    let finished = vibing.finish();
+    client.stop_vibing();
     let branch = String::from_utf8(
         Command::new("git")
             .args(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -49,5 +47,4 @@ fn typestate_flow_with_git() {
     )
     .unwrap();
     assert_eq!(branch.trim(), "main");
-    assert_eq!(finished.branch(), "integration-branch");
 }

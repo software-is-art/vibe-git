@@ -1,5 +1,9 @@
 use std::{marker::PhantomData, process::Command};
 
+mod mcp;
+
+pub use mcp::McpClient;
+
 /// Marker type for the session before it has started.
 pub struct Idle;
 
@@ -77,7 +81,6 @@ mod tests {
     fn typestate_transitions() {
         let dir = tempdir().unwrap();
         std::env::set_current_dir(&dir).unwrap();
-
 
         Command::new("git")
             .args(["init", "-b", "main"])

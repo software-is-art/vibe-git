@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "vibe-git": {
-      "command": "uv",
-      "args": ["run", "vibe-git-mcp"],
-      "cwd": "/Users/cgalbreath@simplemachines.co.nz/git/vibe-git"
+      "command": "cargo",
+      "args": ["run", "--bin", "vibe-git-mcp"],
+      "cwd": "."
     }
   }
 }
