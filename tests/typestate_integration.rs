@@ -37,7 +37,7 @@ fn typestate_flow_with_git() {
     )
     .unwrap();
     assert_eq!(branch.trim(), "integration-branch");
-    assert_eq!(vibing.branch(), "integration-branch");
+    assert_eq!(vibing.branch().as_ref(), "integration-branch");
 
     let finished = vibing.finish();
     let branch = String::from_utf8(
@@ -49,5 +49,5 @@ fn typestate_flow_with_git() {
     )
     .unwrap();
     assert_eq!(branch.trim(), "main");
-    assert_eq!(finished.branch(), "integration-branch");
+    assert_eq!(finished.branch().as_ref(), "integration-branch");
 }
