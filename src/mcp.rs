@@ -1,4 +1,4 @@
-use crate::{Idle, VibeSession, Vibing};
+use crate::{BranchName, Idle, VibeSession, Vibing};
 
 /// Simple client API for driving a vibe session.
 pub struct McpClient {
@@ -12,9 +12,9 @@ impl McpClient {
     }
 
     /// Start vibing on the given branch if not already active.
-    pub fn start_vibing(&mut self, branch: impl AsRef<str>) {
+    pub fn start_vibing(&mut self, branch: impl Into<BranchName>) {
         if self.session.is_none() {
-            let idle = VibeSession::<Idle>::new(branch.as_ref());
+            let idle = VibeSession::<Idle>::new(branch);
             self.session = Some(idle.start());
         }
     }
@@ -27,7 +27,7 @@ impl McpClient {
     }
 
     /// Return the active branch name, if any.
-    pub fn branch(&self) -> Option<&str> {
+    pub fn branch(&self) -> Option<&BranchName> {
         self.session.as_ref().map(|s| s.branch())
     }
 }
