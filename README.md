@@ -7,12 +7,17 @@ commands.
 
 ## Installation
 
-Clone the repository and install the crate locally:
+Install from crates.io:
 
 ```
-git clone <repo>
-cd vibe-git
-cargo install --path .
+cargo install vibe-git
+```
+
+If the crate isn't available on crates.io yet or you want the latest code, you
+can install directly from git:
+
+```
+cargo install --git <repo> vibe-git
 ```
 
 You can also use the crate directly in another project by adding it to your
@@ -38,7 +43,21 @@ cargo run --bin vibe-git-mcp
 ```
 
 ## Development
+Ensure you have a recent Rust toolchain installed. Common development tasks:
 
-```
+```bash
+# format code
+cargo fmt --all -- --check
+
+# lint
+cargo clippy --all-targets --all-features -- -D warnings
+
+# run tests
 cargo test
 ```
+
+### Release
+
+Publishing to crates.io is automated via GitHub Actions. Pushing a tag like
+`v0.1.0` will trigger the workflow to run `cargo publish` using the
+`CARGO_REGISTRY_TOKEN` secret.

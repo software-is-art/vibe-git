@@ -2,6 +2,12 @@
 name = "vibe-git"
 version = "0.1.0"
 edition = "2021"
+description = "Typestate-based git workflow manager with a minimal MCP client"
+license = "MIT"
+repository = "https://github.com/software-is-art/vibe-git"
+readme = "README.md"
+keywords = ["git", "typestate", "workflow"]
+authors = ["Callum Galbreath <37229146+software-is-art@users.noreply.github.com>"]
 
 [dependencies]
 
